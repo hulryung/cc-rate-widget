@@ -55,6 +55,14 @@ final class CredentialManager {
         groupDefaults?.string(forKey: Self.refreshTokenKey)
     }
 
+    func clearAppGroup() {
+        guard let defaults = groupDefaults else { return }
+        defaults.removeObject(forKey: Self.tokenKey)
+        defaults.removeObject(forKey: Self.expiresAtKey)
+        defaults.removeObject(forKey: Self.refreshTokenKey)
+        defaults.synchronize()
+    }
+
     var isTokenExpired: Bool {
         guard let expiresAt = getExpiresAt() else { return false }
         return Date().timeIntervalSince1970 * 1000 > expiresAt

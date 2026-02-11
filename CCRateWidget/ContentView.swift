@@ -43,12 +43,22 @@ struct ContentView: View {
                 .font(.title2.bold())
                 .foregroundStyle(.white)
             Spacer()
+            if hasCredentials {
+                Button(action: logout) {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .font(.body)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Logout")
+            }
             Button(action: { Task { await loadData() } }) {
                 Image(systemName: "arrow.clockwise")
                     .font(.body)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
+            .help("Refresh")
         }
     }
 
@@ -137,9 +147,30 @@ struct ContentView: View {
     }
 
     private var footer: some View {
-        Text("Add the widget to your desktop via Widget Gallery")
-            .font(.caption2)
-            .foregroundStyle(.secondary)
+        HStack {
+            Button(action: {
+                NSWorkspace.shared.open(URL(string: "https://github.com/hulryung/cc-rate-widget")!)
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "link")
+                    Text("GitHub")
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            Spacer()
+            Text("Add widget via Widget Gallery")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func logout() {
+        CredentialManager.shared.clearAppGroup()
+        rateData = nil
+        hasCredentials = false
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func loadData() async {
