@@ -1,0 +1,177 @@
+import SwiftUI
+import WidgetKit
+
+struct ContentView: View {
+    @State private var rateData: RateData?
+    @State private var hasCredentials = false
+    @State private var isLoading = false
+
+    var body: some View {
+        ZStack {
+            Color(nsColor: NSColor(red: 0.08, green: 0.08, blue: 0.10, alpha: 1.0))
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                header
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .scaleEffect(0.8)
+                        .tint(.white)
+                } else if let data = rateData {
+                    rateContent(data)
+                } else if !hasCredentials {
+                    noCredentialsView
+                } else {
+                    Text("Failed to fetch data")
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                footer
+            }
+            .padding(24)
+        }
+        .task { await loadData() }
+    }
+
+    private var header: some View {
+        HStack {
+            Image(systemName: "gauge.with.dots.needle.33percent")
+                .font(.title2)
+                .foregroundStyle(.orange)
+            Text("Claude Rate Widget")
+                .font(.title2.bold())
+                .foregroundStyle(.white)
+            Spacer()
+            Button(action: { Task { await loadData() } }) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.body)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private func rateContent(_ data: RateData) -> some View {
+        VStack(spacing: 12) {
+            statusBadge(data.status)
+            rateRow(label: "Session (5h)", data: data.session)
+            rateRow(label: "Weekly", data: data.weekly)
+            rateRow(label: "Weekly Sonnet", data: data.weeklySonnet)
+            if data.overage.isEnabled {
+                overageRow(data.overage)
+            }
+            Text("Updated \(data.fetchedAt.formatted(.relative(presentation: .named)))")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func statusBadge(_ status: OverallStatus) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(statusColor(status))
+                .frame(width: 8, height: 8)
+            Text(status.label)
+                .font(.caption.bold())
+                .foregroundStyle(statusColor(status))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(statusColor(status).opacity(0.15), in: Capsule())
+    }
+
+    private func rateRow(label: String, data: CategoryData) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(Int(data.utilization * 100))%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.white)
+            }
+            ProgressView(value: min(data.utilization, 1.0))
+                .tint(barColor(data.utilization))
+                .scaleEffect(y: 1.5)
+            if let reset = data.resetsAt {
+                Text("Resets \(reset.formatted(.relative(presentation: .named)))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func overageRow(_ data: OverageData) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Overage")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("$\(String(format: "%.2f", data.spent)) / $\(String(format: "%.2f", data.limit))")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.white)
+            }
+            ProgressView(value: min(data.utilization, 1.0))
+                .tint(barColor(data.utilization))
+                .scaleEffect(y: 1.5)
+        }
+    }
+
+    private var noCredentialsView: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "key.slash")
+                .font(.largeTitle)
+                .foregroundStyle(.orange)
+            Text("No Credentials Found")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Text("Make sure Claude Code is logged in.\nCredentials are read from ~/.claude/.credentials.json")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+    }
+
+    private var footer: some View {
+        Text("Add the widget to your desktop via Widget Gallery")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+    }
+
+    private func loadData() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        if let cred = CredentialManager.shared.readCredentialsFromDisk() {
+            CredentialManager.shared.syncToAppGroup(cred)
+            hasCredentials = true
+        } else {
+            hasCredentials = CredentialManager.shared.getToken() != nil
+        }
+
+        guard hasCredentials else { return }
+        rateData = await RateFetcher.shared.fetchRateData()
+
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    private func statusColor(_ status: OverallStatus) -> Color {
+        switch status {
+        case .active: return .green
+        case .warning: return .orange
+        case .rateLimited: return .red
+        case .error: return .gray
+        case .unknown: return .gray
+        }
+    }
+
+    private func barColor(_ utilization: Double) -> Color {
+        if utilization >= 1.0 { return .red }
+        if utilization >= 0.8 { return .orange }
+        return .green
+    }
+}

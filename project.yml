@@ -1,0 +1,50 @@
+name: CCRateWidget
+options:
+  bundleIdPrefix: com.dkkang
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    DEVELOPMENT_TEAM: XGJ87M8ZZR
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  CCRateWidget:
+    type: application
+    platform: macOS
+    sources:
+      - path: CCRateWidget
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dkkang.cc-rate-widget
+        PRODUCT_NAME: Claude Rate Widget
+        CODE_SIGN_ENTITLEMENTS: CCRateWidget/CCRateWidget.entitlements
+        ENABLE_APP_SANDBOX: false
+        INFOPLIST_FILE: CCRateWidget/Info.plist
+    dependencies:
+      - target: RateWidgetExtension
+
+  RateWidgetExtension:
+    type: app-extension
+    platform: macOS
+    product: RateWidgetExtension.appex
+    sources:
+      - path: RateWidgetExtension
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dkkang.cc-rate-widget.RateWidgetExtension
+        PRODUCT_NAME: RateWidgetExtension
+        CODE_SIGN_ENTITLEMENTS: RateWidgetExtension/RateWidgetExtension.entitlements
+        ENABLE_APP_SANDBOX: true
+        INFOPLIST_FILE: RateWidgetExtension/Info.plist
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/../Frameworks"
+          - "@executable_path/../../../../Frameworks"
