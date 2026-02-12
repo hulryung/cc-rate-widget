@@ -40,18 +40,6 @@ struct ExtraUsage: Codable {
     }
 }
 
-// MARK: - Credential Models
-
-struct CredentialsFile: Codable {
-    let claudeAiOauth: OAuthCredential
-}
-
-struct OAuthCredential: Codable {
-    let accessToken: String
-    let refreshToken: String?
-    let expiresAt: Double?
-}
-
 // MARK: - Widget Data Model
 
 struct RateData {

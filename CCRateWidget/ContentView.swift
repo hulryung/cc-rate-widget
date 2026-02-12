@@ -3,9 +3,14 @@ import WidgetKit
 
 struct ContentView: View {
     @State private var rateData: RateData?
-    @State private var hasCredentials = false
     @State private var isLoading = false
-    @State private var isDisconnected = false
+    @State private var loginError: String?
+    @State private var credentialVersion = 0  // bump to force re-check
+
+    private var isLoggedIn: Bool {
+        _ = credentialVersion  // observe changes
+        return CredentialManager.shared.hasCredentials
+    }
 
     var body: some View {
         ZStack {
@@ -19,16 +24,14 @@ struct ContentView: View {
                         .progressViewStyle(.circular)
                         .scaleEffect(0.8)
                         .tint(.white)
-                } else if isDisconnected {
-                    disconnectedView
+                } else if !isLoggedIn {
+                    loginPromptView
                 } else if let data = rateData, data.status == .unauthorized {
                     sessionExpiredView
                 } else if let data = rateData, data.status == .error {
                     errorView
                 } else if let data = rateData {
                     rateContent(data)
-                } else if !hasCredentials {
-                    noCredentialsView
                 }
                 Spacer()
                 footer
@@ -47,14 +50,14 @@ struct ContentView: View {
                 .font(.title2.bold())
                 .foregroundStyle(.white)
             Spacer()
-            if !isDisconnected && hasCredentials {
-                Button(action: disconnect) {
-                    Image(systemName: "eject")
+            if isLoggedIn {
+                Button(action: logout) {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
                         .font(.body)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .help("Disconnect")
+                .help("Logout")
             }
             Button(action: { Task { await loadData() } }) {
                 Image(systemName: "arrow.clockwise")
@@ -134,6 +137,31 @@ struct ContentView: View {
         }
     }
 
+    private var loginPromptView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "person.crop.circle.badge.questionmark")
+                .font(.largeTitle)
+                .foregroundStyle(.orange)
+            Text("Not Logged In")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Text("Log in with your Claude account\nto view rate limits.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            if let loginError {
+                Text(loginError)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+            }
+            OAuthLoginButton(
+                onSuccess: { credentialVersion += 1; Task { await loadData() } },
+                onError: { loginError = $0 }
+            )
+        }
+        .padding()
+    }
+
     private var sessionExpiredView: some View {
         VStack(spacing: 12) {
             Image(systemName: "clock.badge.exclamationmark")
@@ -142,11 +170,19 @@ struct ContentView: View {
             Text("Session Expired")
                 .font(.headline)
                 .foregroundStyle(.white)
-            Text("Run any command in Claude Code to\nrefresh your session, then tap Retry.")
+            Text("Your session has expired.\nPlease log in again.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            actionButton("Retry") { await loadData() }
+            if let loginError {
+                Text(loginError)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+            }
+            OAuthLoginButton(
+                onSuccess: { credentialVersion += 1; Task { await loadData() } },
+                onError: { loginError = $0 }
+            )
         }
         .padding()
     }
@@ -163,59 +199,17 @@ struct ContentView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            actionButton("Retry") { await loadData() }
-        }
-        .padding()
-    }
-
-    private var disconnectedView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "bolt.slash")
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-            Text("Disconnected")
-                .font(.headline)
-                .foregroundStyle(.white)
-            Text("Credentials cleared from this app.\nReconnect to read from ~/.claude/.credentials.json")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            actionButton("Reconnect") {
-                isDisconnected = false
-                CredentialManager.shared.clearLoggedOutFlag()
-                await loadData()
+            Button(action: { Task { await loadData() } }) {
+                Text("Retry")
+                    .font(.caption.bold())
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                    .background(.orange, in: Capsule())
+                    .foregroundStyle(.black)
             }
+            .buttonStyle(.plain)
         }
         .padding()
-    }
-
-    private var noCredentialsView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "key.slash")
-                .font(.largeTitle)
-                .foregroundStyle(.orange)
-            Text("No Credentials Found")
-                .font(.headline)
-                .foregroundStyle(.white)
-            Text("Log in via Claude Code CLI first.\nCredentials are read from ~/.claude/.credentials.json")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            actionButton("Retry") { await loadData() }
-        }
-        .padding()
-    }
-
-    private func actionButton(_ label: String, action: @escaping () async -> Void) -> some View {
-        Button(action: { Task { await action() } }) {
-            Text(label)
-                .font(.caption.bold())
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-                .background(.orange, in: Capsule())
-                .foregroundStyle(.black)
-        }
-        .buttonStyle(.plain)
     }
 
     private var footer: some View {
@@ -238,26 +232,22 @@ struct ContentView: View {
         }
     }
 
-    private func disconnect() {
-        CredentialManager.shared.logout()
+    private func logout() {
+        CredentialManager.shared.clearCredentials()
         rateData = nil
-        hasCredentials = false
-        isDisconnected = true
+        credentialVersion += 1
         WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func loadData() async {
+        guard isLoggedIn else { return }
         isLoading = true
         defer { isLoading = false }
-
-        if let _ = CredentialManager.shared.readCredentialsFromDisk() {
-            hasCredentials = true
-        } else {
-            hasCredentials = false
-            return
+        let data = await RateFetcher.shared.fetchRateData()
+        rateData = data
+        if data.status != .error && data.status != .unauthorized {
+            CredentialManager.shared.saveCachedRateData(data)
         }
-
-        rateData = await RateFetcher.shared.fetchRateData()
         WidgetCenter.shared.reloadAllTimelines()
     }
 

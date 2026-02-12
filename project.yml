@@ -2,14 +2,14 @@ name: CCRateWidget
 options:
   bundleIdPrefix: com.dkkang
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "14.4"
   xcodeVersion: "16.0"
   generateEmptyDirectories: true
 
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.4"
     DEVELOPMENT_TEAM: XGJ87M8ZZR
     CODE_SIGN_IDENTITY: "Developer ID Application"
     CODE_SIGN_STYLE: Manual

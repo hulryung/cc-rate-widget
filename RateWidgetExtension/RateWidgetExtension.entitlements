@@ -6,9 +6,5 @@
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>
-	<key>com.apple.security.application-groups</key>
-	<array>
-		<string>XGJ87M8ZZR.com.dkkang.cc-rate-widget</string>
-	</array>
 </dict>
 </plist>
