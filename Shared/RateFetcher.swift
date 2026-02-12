@@ -28,6 +28,10 @@ final class RateFetcher {
                 return errorData()
             }
 
+            if httpResponse.statusCode == 401 {
+                return errorData(status: .unauthorized)
+            }
+
             guard httpResponse.statusCode == 200 else {
                 return errorData()
             }
@@ -88,14 +92,14 @@ final class RateFetcher {
         return formatter.date(from: string)
     }
 
-    private func errorData() -> RateData {
+    private func errorData(status: OverallStatus = .error) -> RateData {
         RateData(
             session: CategoryData(utilization: 0, resetsAt: nil),
             weekly: CategoryData(utilization: 0, resetsAt: nil),
             weeklySonnet: CategoryData(utilization: 0, resetsAt: nil),
             overage: OverageData(isEnabled: false, utilization: 0, spent: 0, limit: 0),
             fetchedAt: Date(),
-            status: .error
+            status: status
         )
     }
 }

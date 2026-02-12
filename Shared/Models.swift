@@ -88,6 +88,7 @@ enum OverallStatus: String {
     case active
     case warning
     case rateLimited = "rate_limited"
+    case unauthorized
     case error
     case unknown
 
@@ -96,6 +97,7 @@ enum OverallStatus: String {
         case .active: return "Active"
         case .warning: return "Warning"
         case .rateLimited: return "Rate Limited"
+        case .unauthorized: return "Session Expired"
         case .error: return "Error"
         case .unknown: return "Unknown"
         }

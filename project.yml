@@ -11,7 +11,9 @@ settings:
     SWIFT_VERSION: "5.9"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     DEVELOPMENT_TEAM: XGJ87M8ZZR
-    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "Developer ID Application"
+    CODE_SIGN_STYLE: Manual
+    ENABLE_HARDENED_RUNTIME: true
 
 targets:
   CCRateWidget:

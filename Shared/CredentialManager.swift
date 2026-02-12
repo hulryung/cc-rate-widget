@@ -2,17 +2,15 @@ import Foundation
 
 final class CredentialManager {
     static let shared = CredentialManager()
-    static let appGroupID = "XGJ87M8ZZR.com.dkkang.cc-rate-widget"
-    private static let tokenKey = "oauth_access_token"
-    private static let expiresAtKey = "oauth_expires_at"
-    private static let refreshTokenKey = "oauth_refresh_token"
     private static let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
     private static let tokenEndpoint = "https://platform.claude.com/v1/oauth/token"
-    private static let loggedOutKey = "user_logged_out"
+
+    private var cachedCredential: OAuthCredential?
+    private var _isLoggedOut = false
 
     private init() {}
 
-    // MARK: - Read from ~/.claude/.credentials.json (host app only)
+    // MARK: - Read from ~/.claude/.credentials.json
 
     func readCredentialsFromDisk() -> OAuthCredential? {
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -22,85 +20,76 @@ final class CredentialManager {
               let creds = try? JSONDecoder().decode(CredentialsFile.self, from: data) else {
             return nil
         }
+        cachedCredential = creds.claudeAiOauth
         return creds.claudeAiOauth
     }
 
-    // MARK: - App Group UserDefaults
-
-    private var groupDefaults: UserDefaults? {
-        UserDefaults(suiteName: Self.appGroupID)
-    }
-
-    func syncToAppGroup(_ credential: OAuthCredential) {
-        guard let defaults = groupDefaults else { return }
-        defaults.set(credential.accessToken, forKey: Self.tokenKey)
-        if let expiresAt = credential.expiresAt {
-            defaults.set(expiresAt, forKey: Self.expiresAtKey)
-        }
-        if let refreshToken = credential.refreshToken {
-            defaults.set(refreshToken, forKey: Self.refreshTokenKey)
-        }
-        defaults.synchronize()
-    }
+    // MARK: - Token Access
 
     func getToken() -> String? {
-        groupDefaults?.string(forKey: Self.tokenKey)
-    }
-
-    func getExpiresAt() -> Double? {
-        let val = groupDefaults?.double(forKey: Self.expiresAtKey)
-        return val == 0 ? nil : val
-    }
-
-    func getRefreshToken() -> String? {
-        groupDefaults?.string(forKey: Self.refreshTokenKey)
-    }
-
-    func clearAppGroup() {
-        guard let defaults = groupDefaults else { return }
-        defaults.removeObject(forKey: Self.tokenKey)
-        defaults.removeObject(forKey: Self.expiresAtKey)
-        defaults.removeObject(forKey: Self.refreshTokenKey)
-        defaults.set(true, forKey: Self.loggedOutKey)
-        defaults.synchronize()
-    }
-
-    var isLoggedOut: Bool {
-        groupDefaults?.bool(forKey: Self.loggedOutKey) ?? false
-    }
-
-    func clearLoggedOutFlag() {
-        groupDefaults?.removeObject(forKey: Self.loggedOutKey)
-        groupDefaults?.synchronize()
+        cachedCredential?.accessToken ?? readCredentialsFromDisk()?.accessToken
     }
 
     var isTokenExpired: Bool {
-        guard let expiresAt = getExpiresAt() else { return false }
+        guard let cred = cachedCredential ?? readCredentialsFromDisk(),
+              let expiresAt = cred.expiresAt else { return false }
         return Date().timeIntervalSince1970 * 1000 > expiresAt
+    }
+
+    // MARK: - Logout / Login
+
+    var isLoggedOut: Bool { _isLoggedOut }
+
+    func logout() {
+        cachedCredential = nil
+        _isLoggedOut = true
+    }
+
+    func clearLoggedOutFlag() {
+        _isLoggedOut = false
     }
 
     // MARK: - Token Refresh
 
     func refreshTokenIfNeeded() async -> String? {
-        guard let currentToken = getToken() else { return nil }
-        guard isTokenExpired else { return currentToken }
-        guard let refreshToken = getRefreshToken() else { return nil }
+        let cred: OAuthCredential
+        if let cached = cachedCredential {
+            cred = cached
+        } else if let fromDisk = readCredentialsFromDisk() {
+            cred = fromDisk
+        } else {
+            return nil
+        }
 
-        guard let url = URL(string: Self.tokenEndpoint) else { return nil }
+        // Not expired - use as-is
+        guard let expiresAt = cred.expiresAt,
+              Date().timeIntervalSince1970 * 1000 > expiresAt else {
+            return cred.accessToken
+        }
+
+        // Try refresh
+        guard let refreshToken = cred.refreshToken else {
+            return cred.accessToken
+        }
+
+        guard let url = URL(string: Self.tokenEndpoint) else {
+            return cred.accessToken
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
-        guard let encodedToken = refreshToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
-        let body = "grant_type=refresh_token&refresh_token=\(encodedToken)&client_id=\(Self.clientID)"
+        let body = "grant_type=refresh_token&refresh_token=\(refreshToken)&client_id=\(Self.clientID)"
         request.httpBody = body.data(using: .utf8)
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
-                return nil
+                NSLog("[CredentialManager] refresh failed: status=\((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                // Still return current token - API might accept it
+                return cred.accessToken
             }
 
             struct TokenResponse: Codable {
@@ -110,17 +99,15 @@ final class CredentialManager {
             }
 
             let tokenResp = try JSONDecoder().decode(TokenResponse.self, from: data)
-            let expiresAt = tokenResp.expires_in.map { Date().timeIntervalSince1970 * 1000 + $0 * 1000 }
-
-            let newCred = OAuthCredential(
+            cachedCredential = OAuthCredential(
                 accessToken: tokenResp.access_token,
                 refreshToken: tokenResp.refresh_token ?? refreshToken,
-                expiresAt: expiresAt
+                expiresAt: tokenResp.expires_in.map { Date().timeIntervalSince1970 * 1000 + $0 * 1000 }
             )
-            syncToAppGroup(newCred)
             return tokenResp.access_token
         } catch {
-            return nil
+            NSLog("[CredentialManager] refresh error: \(error)")
+            return cred.accessToken
         }
     }
 }
