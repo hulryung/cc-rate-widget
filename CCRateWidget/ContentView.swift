@@ -131,17 +131,36 @@ struct ContentView: View {
     }
 
     private var noCredentialsView: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 12) {
             Image(systemName: "key.slash")
                 .font(.largeTitle)
                 .foregroundStyle(.orange)
-            Text("No Credentials Found")
-                .font(.headline)
-                .foregroundStyle(.white)
-            Text("Make sure Claude Code is logged in.\nCredentials are read from ~/.claude/.credentials.json")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            if CredentialManager.shared.isLoggedOut {
+                Text("Logged Out")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Text("Re-sync credentials from ~/.claude/.credentials.json")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button(action: { Task { await login() } }) {
+                    Text("Login")
+                        .font(.caption.bold())
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                        .background(.orange, in: Capsule())
+                        .foregroundStyle(.black)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Text("No Credentials Found")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Text("Make sure Claude Code is logged in.\nCredentials are read from ~/.claude/.credentials.json")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
         }
         .padding()
     }
@@ -173,11 +192,17 @@ struct ContentView: View {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
+    private func login() async {
+        CredentialManager.shared.clearLoggedOutFlag()
+        await loadData()
+    }
+
     private func loadData() async {
         isLoading = true
         defer { isLoading = false }
 
-        if let cred = CredentialManager.shared.readCredentialsFromDisk() {
+        if !CredentialManager.shared.isLoggedOut,
+           let cred = CredentialManager.shared.readCredentialsFromDisk() {
             CredentialManager.shared.syncToAppGroup(cred)
             hasCredentials = true
         } else {

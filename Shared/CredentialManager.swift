@@ -8,6 +8,7 @@ final class CredentialManager {
     private static let refreshTokenKey = "oauth_refresh_token"
     private static let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
     private static let tokenEndpoint = "https://platform.claude.com/v1/oauth/token"
+    private static let loggedOutKey = "user_logged_out"
 
     private init() {}
 
@@ -60,7 +61,17 @@ final class CredentialManager {
         defaults.removeObject(forKey: Self.tokenKey)
         defaults.removeObject(forKey: Self.expiresAtKey)
         defaults.removeObject(forKey: Self.refreshTokenKey)
+        defaults.set(true, forKey: Self.loggedOutKey)
         defaults.synchronize()
+    }
+
+    var isLoggedOut: Bool {
+        groupDefaults?.bool(forKey: Self.loggedOutKey) ?? false
+    }
+
+    func clearLoggedOutFlag() {
+        groupDefaults?.removeObject(forKey: Self.loggedOutKey)
+        groupDefaults?.synchronize()
     }
 
     var isTokenExpired: Bool {
@@ -73,22 +84,23 @@ final class CredentialManager {
     func refreshTokenIfNeeded() async -> String? {
         guard let currentToken = getToken() else { return nil }
         guard isTokenExpired else { return currentToken }
-        guard let refreshToken = getRefreshToken() else { return currentToken }
+        guard let refreshToken = getRefreshToken() else { return nil }
 
-        guard let url = URL(string: Self.tokenEndpoint) else { return currentToken }
+        guard let url = URL(string: Self.tokenEndpoint) else { return nil }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
-        let body = "grant_type=refresh_token&refresh_token=\(refreshToken)&client_id=\(Self.clientID)"
+        guard let encodedToken = refreshToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
+        let body = "grant_type=refresh_token&refresh_token=\(encodedToken)&client_id=\(Self.clientID)"
         request.httpBody = body.data(using: .utf8)
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
-                return currentToken
+                return nil
             }
 
             struct TokenResponse: Codable {
@@ -108,7 +120,7 @@ final class CredentialManager {
             syncToAppGroup(newCred)
             return tokenResp.access_token
         } catch {
-            return currentToken
+            return nil
         }
     }
 }
