@@ -161,7 +161,7 @@ struct ContentView: View {
             if let loginError {
                 Text(loginError)
                     .font(.caption2)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.orange)
             }
             OAuthLoginButton(
                 onSuccess: { credentialVersion += 1; Task { await loadData() } },
@@ -186,7 +186,7 @@ struct ContentView: View {
             if let loginError {
                 Text(loginError)
                     .font(.caption2)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.orange)
             }
             OAuthLoginButton(
                 onSuccess: { credentialVersion += 1; Task { await loadData() } },

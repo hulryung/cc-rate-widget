@@ -214,7 +214,7 @@ final class CredentialManager {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else { return false }
             guard httpResponse.statusCode == 200 else {
-                NSLog("[OAuth] Token exchange failed: \(httpResponse.statusCode)")
+                NSLog("[OAuth] Token exchange failed: \(httpResponse.statusCode) \(String(data: data, encoding: .utf8) ?? "")")
                 return false
             }
             let tokenResp = try JSONDecoder().decode(TokenResponse.self, from: data)

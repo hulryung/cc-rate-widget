@@ -60,6 +60,7 @@ struct OAuthLoginButton: View {
     }
 
     private func startLogin() {
+        codeText = ""
         let pkce = CredentialManager.generatePKCE()
         let state = UUID().uuidString
         codeVerifier = pkce.verifier
@@ -101,8 +102,6 @@ struct OAuthLoginButton: View {
             code = input
         }
 
-        NSLog("[OAuth] submitting code: \(code.prefix(10))... verifier: \(codeVerifier.prefix(10))...")
-
         isExchanging = true
         Task {
             let success = await CredentialManager.shared.exchangeCodeForTokens(
@@ -115,7 +114,9 @@ struct OAuthLoginButton: View {
                     codeText = ""
                     onSuccess()
                 } else {
-                    onError("Token exchange failed. Try again.")
+                    // Code was likely already used; restart login flow with fresh code
+                    startLogin()
+                    onError("Code expired. A new browser tab has been opened.")
                 }
             }
         }
