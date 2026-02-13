@@ -1,6 +1,8 @@
 # Claude Rate Widget
 
-A native macOS WidgetKit widget that monitors your Claude Code rate limits at a glance.
+**[Homepage](https://hulryung.github.io/cc-rate-widget/)** | **[Download](https://github.com/hulryung/cc-rate-widget/releases/latest)**
+
+A free, open-source native macOS WidgetKit widget that monitors your Claude Code rate limits at a glance.
 
 ## Screenshots
 
