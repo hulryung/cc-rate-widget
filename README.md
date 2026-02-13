@@ -2,7 +2,7 @@
 
 **[Homepage](https://hulryung.github.io/cc-rate-widget/)** | **[Download](https://github.com/hulryung/cc-rate-widget/releases/latest)**
 
-A free, open-source native macOS WidgetKit widget that monitors your Claude Code rate limits at a glance.
+A free, open-source native macOS widget that monitors your Claude Code rate limits at a glance. Never hit a rate limit unexpectedly again.
 
 ## Screenshots
 
@@ -12,33 +12,52 @@ A free, open-source native macOS WidgetKit widget that monitors your Claude Code
 
 ## Features
 
-- Displays Session (5h), Weekly, Weekly Sonnet, and Overage rate limits
-- Color-coded status: green (active), orange (warning 80%+), red (rate limited)
-- Reset time countdowns for each category
-- Auto-refreshes every 15 minutes via WidgetKit
-- Reads credentials from `~/.claude/.credentials.json`
-
-## Requirements
-
-- macOS 14.0+
-- Xcode 16+
-- [xcodegen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
-- Active Claude Code login
-
-## Build
-
-```bash
-xcodegen generate
-xcodebuild build -project CCRateWidget.xcodeproj -scheme CCRateWidget -configuration Release -allowProvisioningUpdates
-```
+- **See all your limits at once** — Session (5h), Weekly, Weekly Sonnet, and Overage in a single widget
+- **Color-coded status** — Green (active), orange (warning 80%+), red (rate limited) so you can spot problems before they hit
+- **Reset countdowns** — Know exactly when each limit resets
+- **Auto-refresh** — Updates every 15 minutes via WidgetKit
+- **Three widget sizes** — Small, Medium, and Large to fit your workflow
+- **Secure OAuth login** — Authenticate with your Anthropic account, no API keys needed
 
 ## Install
 
-Copy the built app to `/Applications` and launch it once to sync credentials:
+1. **Download** the latest DMG from [Releases](https://github.com/hulryung/cc-rate-widget/releases/latest)
+2. **Drag** Claude Rate Widget to your Applications folder
+3. **Launch** the app and log in with your Anthropic account
+4. **Add widget** — Right-click your desktop > Edit Widgets > search "Claude Rate Monitor"
+
+### Requirements
+
+- macOS 14.0 (Sonoma) or later
+- Active Claude Code / Claude Max subscription
+
+---
+
+## Development
+
+### Prerequisites
+
+- Xcode 16+
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
+
+### Build from source
 
 ```bash
-cp -R ~/Library/Developer/Xcode/DerivedData/CCRateWidget-*/Build/Products/Release/Claude\ Rate\ Widget.app /Applications/
-open /Applications/Claude\ Rate\ Widget.app
+xcodegen generate
+xcodebuild build -project CCRateWidget.xcodeproj -scheme CCRateWidget -configuration Release
 ```
 
-Then right-click the desktop > **Edit Widgets** > search "Claude Rate Monitor" to add the widget.
+The built app will be at:
+```
+~/Library/Developer/Xcode/DerivedData/CCRateWidget-*/Build/Products/Release/Claude Rate Widget.app
+```
+
+### Project structure
+
+```
+CCRateWidget/          # Main app (login UI, rate display)
+RateWidgetExtension/   # Widget extension
+Shared/                # Shared code (models, API, storage)
+docs/                  # Landing page (Jekyll, GitHub Pages)
+project.yml            # XcodeGen project spec
+```
