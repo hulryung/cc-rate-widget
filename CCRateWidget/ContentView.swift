@@ -39,6 +39,7 @@ struct ContentView: View {
             .padding(24)
         }
         .task { await loadData() }
+        .preferredColorScheme(.dark)
     }
 
     private var header: some View {
