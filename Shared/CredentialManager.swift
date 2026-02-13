@@ -93,23 +93,6 @@ final class CredentialManager {
     func clearCredentials() {
         keychainDelete(key: "credentials")
         keychainDelete(key: "cached_rate_data")
-        keychainDelete(key: "user_info")
-    }
-
-    // MARK: - User Info (via Keychain)
-
-    func saveUserInfo(_ info: UserInfo) {
-        if let data = try? JSONEncoder().encode(info) {
-            keychainSave(key: "user_info", data: data)
-        }
-    }
-
-    func loadUserInfo() -> UserInfo? {
-        guard let data = keychainLoad(key: "user_info"),
-              let info = try? JSONDecoder().decode(UserInfo.self, from: data) else {
-            return nil
-        }
-        return info
     }
 
     // MARK: - Cached Rate Data (via Keychain)

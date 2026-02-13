@@ -72,26 +72,6 @@ struct OverageData {
     let limit: Double        // dollars
 }
 
-struct UserInfo: Codable {
-    let email: String?
-    let name: String?
-
-    var displayLabel: String? {
-        name ?? email
-    }
-}
-
-struct UserInfoResponse: Codable {
-    let email: String?
-    let name: String?
-    let displayName: String?
-
-    enum CodingKeys: String, CodingKey {
-        case email, name
-        case displayName = "display_name"
-    }
-}
-
 enum OverallStatus: String {
     case active
     case warning
