@@ -12,16 +12,47 @@ final class CredentialManager {
     static let scopes = "org:create_api_key user:profile user:inference"
 
     private init() {
+        migrateToAppGroupIfNeeded()
         cleanupKeychain()
     }
 
     // MARK: - File-based Storage
 
     private var storageDir: URL {
+        if let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.dkkang.cc-rate-widget") {
+            return shared
+        }
+        // Fallback for development/testing
+        return legacyStorageDir
+    }
+
+    private var legacyStorageDir: URL {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let dir = home.appendingPathComponent("Library/Application Support/ClaudeRateWidget")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
+    }
+
+    private func migrateToAppGroupIfNeeded() {
+        guard let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.dkkang.cc-rate-widget") else { return }
+
+        let fm = FileManager.default
+        let legacyCreds = legacyStorageDir.appendingPathComponent("credentials.json")
+        let sharedCreds = shared.appendingPathComponent("credentials.json")
+
+        // Only migrate if legacy data exists and shared container has no credentials yet
+        guard fm.fileExists(atPath: legacyCreds.path),
+              !fm.fileExists(atPath: sharedCreds.path) else { return }
+
+        // Copy credentials
+        try? fm.copyItem(at: legacyCreds, to: sharedCreds)
+
+        // Copy cached rate data if it exists
+        let legacyCached = legacyStorageDir.appendingPathComponent("cached_rate_data.json")
+        let sharedCached = shared.appendingPathComponent("cached_rate_data.json")
+        if fm.fileExists(atPath: legacyCached.path), !fm.fileExists(atPath: sharedCached.path) {
+            try? fm.copyItem(at: legacyCached, to: sharedCached)
+        }
     }
 
     private var credentialFile: URL { storageDir.appendingPathComponent("credentials.json") }
