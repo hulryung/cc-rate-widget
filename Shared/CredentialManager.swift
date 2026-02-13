@@ -13,50 +13,11 @@ final class CredentialManager {
 
     private init() {}
 
-    // MARK: - Keychain Storage
-    // Shared keychain access group so both app and widget extension can read/write
-    private static let keychainService = "com.dkkang.cc-rate-widget.shared"
-    private static let keychainAccessGroup = "XGJ87M8ZZR.com.dkkang.cc-rate-widget.shared"
+    // MARK: - Shared Storage via App Group UserDefaults
+    private static let appGroupID = "group.com.dkkang.cc-rate-widget"
+    private let defaults = UserDefaults(suiteName: appGroupID)!
 
-    private func baseQuery(key: String) -> [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.keychainService,
-            kSecAttrAccount as String: key,
-            kSecAttrAccessGroup as String: Self.keychainAccessGroup,
-            kSecUseDataProtectionKeychain as String: true,
-        ]
-    }
-
-    @discardableResult
-    private func keychainSave(key: String, data: Data) -> Bool {
-        SecItemDelete(baseQuery(key: key) as CFDictionary)
-
-        var addQuery = baseQuery(key: key)
-        addQuery[kSecValueData as String] = data
-        addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        let status = SecItemAdd(addQuery as CFDictionary, nil)
-        if status != errSecSuccess {
-            NSLog("[Keychain] Save failed for key '\(key)': \(status)")
-        }
-        return status == errSecSuccess
-    }
-
-    private func keychainLoad(key: String) -> Data? {
-        var query = baseQuery(key: key)
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess else { return nil }
-        return result as? Data
-    }
-
-    private func keychainDelete(key: String) {
-        SecItemDelete(baseQuery(key: key) as CFDictionary)
-    }
-
-    // MARK: - Credential Storage (via Keychain)
+    // MARK: - Credential Storage
 
     private struct StoredCredentials: Codable {
         var accessToken: String
@@ -65,7 +26,7 @@ final class CredentialManager {
     }
 
     private func readStoredCredentials() -> StoredCredentials? {
-        guard let data = keychainLoad(key: "credentials"),
+        guard let data = defaults.data(forKey: "credentials"),
               let creds = try? JSONDecoder().decode(StoredCredentials.self, from: data) else {
             return nil
         }
@@ -74,7 +35,7 @@ final class CredentialManager {
 
     private func writeStoredCredentials(_ creds: StoredCredentials) {
         if let data = try? JSONEncoder().encode(creds) {
-            keychainSave(key: "credentials", data: data)
+            defaults.set(data, forKey: "credentials")
         }
     }
 
@@ -91,11 +52,11 @@ final class CredentialManager {
     var hasCredentials: Bool { readStoredCredentials() != nil }
 
     func clearCredentials() {
-        keychainDelete(key: "credentials")
-        keychainDelete(key: "cached_rate_data")
+        defaults.removeObject(forKey: "credentials")
+        defaults.removeObject(forKey: "cached_rate_data")
     }
 
-    // MARK: - Cached Rate Data (via Keychain)
+    // MARK: - Cached Rate Data
 
     func saveCachedRateData(_ data: RateData) {
         let cached = CachedRateData(
@@ -113,12 +74,12 @@ final class CredentialManager {
             status: data.status.rawValue
         )
         if let json = try? JSONEncoder().encode(cached) {
-            keychainSave(key: "cached_rate_data", data: json)
+            defaults.set(json, forKey: "cached_rate_data")
         }
     }
 
     func loadCachedRateData() -> RateData? {
-        guard let data = keychainLoad(key: "cached_rate_data"),
+        guard let data = defaults.data(forKey: "cached_rate_data"),
               let cached = try? JSONDecoder().decode(CachedRateData.self, from: data) else {
             return nil
         }
