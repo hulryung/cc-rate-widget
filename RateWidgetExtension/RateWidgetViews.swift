@@ -8,16 +8,41 @@ struct RateWidgetEntryView: View {
     var entry: RateEntry
 
     var body: some View {
-        switch family {
-        case .systemSmall:
-            SmallWidgetView(entry: entry)
-        case .systemMedium:
-            MediumWidgetView(entry: entry)
-        case .systemLarge:
-            LargeWidgetView(entry: entry)
-        default:
-            MediumWidgetView(entry: entry)
+        if entry.data.status == .notLoggedIn {
+            LoginPromptView(family: family)
+        } else {
+            switch family {
+            case .systemSmall:
+                SmallWidgetView(entry: entry)
+            case .systemMedium:
+                MediumWidgetView(entry: entry)
+            case .systemLarge:
+                LargeWidgetView(entry: entry)
+            default:
+                MediumWidgetView(entry: entry)
+            }
         }
+    }
+}
+
+// MARK: - Login Prompt
+
+struct LoginPromptView: View {
+    let family: WidgetFamily
+
+    var body: some View {
+        VStack(spacing: family == .systemSmall ? 6 : 10) {
+            Image(systemName: "person.crop.circle.badge.questionmark")
+                .font(family == .systemSmall ? .title3 : .largeTitle)
+                .foregroundStyle(.orange)
+            Text("Login Required")
+                .font(family == .systemSmall ? .caption.bold() : .headline)
+            Text("Tap to open app and log in")
+                .font(family == .systemSmall ? .system(size: 9) : .caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .widgetURL(URL(string: "clauderatewidget://login"))
     }
 }
 
@@ -257,6 +282,7 @@ private func statusColor(_ status: OverallStatus) -> Color {
     case .warning: return .orange
     case .rateLimited: return .red
     case .unauthorized: return .red
+    case .notLoggedIn: return .orange
     case .error, .unknown: return .gray
     }
 }

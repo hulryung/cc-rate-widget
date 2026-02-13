@@ -38,7 +38,7 @@ struct RateProvider: TimelineProvider {
             let data: RateData
             // Try fetching live data first
             let fetched = await RateFetcher.shared.fetchRateData()
-            if fetched.status == .error || fetched.status == .unauthorized {
+            if fetched.status == .error || fetched.status == .unauthorized || fetched.status == .notLoggedIn {
                 // Fall back to cached data if available
                 data = CredentialManager.shared.loadCachedRateData() ?? fetched
             } else {

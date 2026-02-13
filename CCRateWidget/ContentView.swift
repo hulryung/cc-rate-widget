@@ -3,6 +3,7 @@ import WidgetKit
 
 struct ContentView: View {
     @State private var rateData: RateData?
+    @State private var userInfo: UserInfo?
     @State private var isLoading = false
     @State private var loginError: String?
     @State private var credentialVersion = 0  // bump to force re-check
@@ -72,7 +73,14 @@ struct ContentView: View {
 
     private func rateContent(_ data: RateData) -> some View {
         VStack(spacing: 12) {
-            statusBadge(data.status)
+            HStack(spacing: 8) {
+                statusBadge(data.status)
+                if let label = userInfo?.displayLabel {
+                    Text(label)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
             rateRow(label: "Session (5h)", data: data.session)
             rateRow(label: "Weekly", data: data.weekly)
             rateRow(label: "Weekly Sonnet", data: data.weeklySonnet)
@@ -244,7 +252,10 @@ struct ContentView: View {
         guard isLoggedIn else { return }
         isLoading = true
         defer { isLoading = false }
-        let data = await RateFetcher.shared.fetchRateData()
+        async let rateTask = RateFetcher.shared.fetchRateData()
+        async let userTask = RateFetcher.shared.fetchUserInfo()
+        let data = await rateTask
+        userInfo = await userTask
         rateData = data
         if data.status != .error && data.status != .unauthorized {
             CredentialManager.shared.saveCachedRateData(data)
@@ -258,6 +269,7 @@ struct ContentView: View {
         case .warning: return .orange
         case .rateLimited: return .red
         case .unauthorized: return .red
+        case .notLoggedIn: return .orange
         case .error: return .gray
         case .unknown: return .gray
         }

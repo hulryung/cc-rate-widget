@@ -27,7 +27,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.dkkang.cc-rate-widget
         PRODUCT_NAME: Claude Rate Widget
         CODE_SIGN_ENTITLEMENTS: CCRateWidget/CCRateWidget.entitlements
-        ENABLE_APP_SANDBOX: false
+        ENABLE_APP_SANDBOX: true
         INFOPLIST_FILE: CCRateWidget/Info.plist
     dependencies:
       - target: RateWidgetExtension

@@ -11,52 +11,56 @@ final class CredentialManager {
     static let redirectURI = "https://console.anthropic.com/oauth/code/callback"
     static let scopes = "org:create_api_key user:profile user:inference"
 
-    private init() {
-        migrateToAppGroupIfNeeded()
-        cleanupKeychain()
-    }
+    private init() {}
 
-    // MARK: - File-based Storage
+    // MARK: - Keychain Storage
+    // Sandboxed apps use the login keychain without prompts
 
-    private var storageDir: URL {
-        if let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.dkkang.cc-rate-widget") {
-            return shared
+    private static let keychainService = "com.dkkang.cc-rate-widget.shared"
+
+    @discardableResult
+    private func keychainSave(key: String, data: Data) -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Self.keychainService,
+            kSecAttrAccount as String: key,
+        ]
+        SecItemDelete(query as CFDictionary)
+
+        var addQuery = query
+        addQuery[kSecValueData as String] = data
+        addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        if status != errSecSuccess {
+            NSLog("[Keychain] Save failed for key '\(key)': \(status)")
         }
-        // Fallback for development/testing
-        return legacyStorageDir
+        return status == errSecSuccess
     }
 
-    private var legacyStorageDir: URL {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let dir = home.appendingPathComponent("Library/Application Support/ClaudeRateWidget")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
+    private func keychainLoad(key: String) -> Data? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Self.keychainService,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess else { return nil }
+        return result as? Data
     }
 
-    private func migrateToAppGroupIfNeeded() {
-        guard let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.dkkang.cc-rate-widget") else { return }
-
-        let fm = FileManager.default
-        let legacyCreds = legacyStorageDir.appendingPathComponent("credentials.json")
-        let sharedCreds = shared.appendingPathComponent("credentials.json")
-
-        // Only migrate if legacy data exists and shared container has no credentials yet
-        guard fm.fileExists(atPath: legacyCreds.path),
-              !fm.fileExists(atPath: sharedCreds.path) else { return }
-
-        // Copy credentials
-        try? fm.copyItem(at: legacyCreds, to: sharedCreds)
-
-        // Copy cached rate data if it exists
-        let legacyCached = legacyStorageDir.appendingPathComponent("cached_rate_data.json")
-        let sharedCached = shared.appendingPathComponent("cached_rate_data.json")
-        if fm.fileExists(atPath: legacyCached.path), !fm.fileExists(atPath: sharedCached.path) {
-            try? fm.copyItem(at: legacyCached, to: sharedCached)
-        }
+    private func keychainDelete(key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Self.keychainService,
+            kSecAttrAccount as String: key,
+        ]
+        SecItemDelete(query as CFDictionary)
     }
 
-    private var credentialFile: URL { storageDir.appendingPathComponent("credentials.json") }
-    private var cachedDataFile: URL { storageDir.appendingPathComponent("cached_rate_data.json") }
+    // MARK: - Credential Storage (via Keychain)
 
     private struct StoredCredentials: Codable {
         var accessToken: String
@@ -65,13 +69,16 @@ final class CredentialManager {
     }
 
     private func readStoredCredentials() -> StoredCredentials? {
-        guard let data = try? Data(contentsOf: credentialFile) else { return nil }
-        return try? JSONDecoder().decode(StoredCredentials.self, from: data)
+        guard let data = keychainLoad(key: "credentials"),
+              let creds = try? JSONDecoder().decode(StoredCredentials.self, from: data) else {
+            return nil
+        }
+        return creds
     }
 
     private func writeStoredCredentials(_ creds: StoredCredentials) {
         if let data = try? JSONEncoder().encode(creds) {
-            try? data.write(to: credentialFile, options: .atomic)
+            keychainSave(key: "credentials", data: data)
         }
     }
 
@@ -88,12 +95,28 @@ final class CredentialManager {
     var hasCredentials: Bool { readStoredCredentials() != nil }
 
     func clearCredentials() {
-        try? FileManager.default.removeItem(at: credentialFile)
-        // Also clean up old keychain items if they exist
-        cleanupKeychain()
+        keychainDelete(key: "credentials")
+        keychainDelete(key: "cached_rate_data")
+        keychainDelete(key: "user_info")
     }
 
-    // MARK: - Cached Rate Data (for widget)
+    // MARK: - User Info (via Keychain)
+
+    func saveUserInfo(_ info: UserInfo) {
+        if let data = try? JSONEncoder().encode(info) {
+            keychainSave(key: "user_info", data: data)
+        }
+    }
+
+    func loadUserInfo() -> UserInfo? {
+        guard let data = keychainLoad(key: "user_info"),
+              let info = try? JSONDecoder().decode(UserInfo.self, from: data) else {
+            return nil
+        }
+        return info
+    }
+
+    // MARK: - Cached Rate Data (via Keychain)
 
     func saveCachedRateData(_ data: RateData) {
         let cached = CachedRateData(
@@ -111,12 +134,12 @@ final class CredentialManager {
             status: data.status.rawValue
         )
         if let json = try? JSONEncoder().encode(cached) {
-            try? json.write(to: cachedDataFile, options: .atomic)
+            keychainSave(key: "cached_rate_data", data: json)
         }
     }
 
     func loadCachedRateData() -> RateData? {
-        guard let data = try? Data(contentsOf: cachedDataFile),
+        guard let data = keychainLoad(key: "cached_rate_data"),
               let cached = try? JSONDecoder().decode(CachedRateData.self, from: data) else {
             return nil
         }
@@ -189,8 +212,9 @@ final class CredentialManager {
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
+            guard let httpResponse = response as? HTTPURLResponse else { return false }
+            guard httpResponse.statusCode == 200 else {
+                NSLog("[OAuth] Token exchange failed: \(httpResponse.statusCode)")
                 return false
             }
             let tokenResp = try JSONDecoder().decode(TokenResponse.self, from: data)
@@ -202,6 +226,7 @@ final class CredentialManager {
             )
             return true
         } catch {
+            NSLog("[OAuth] Token exchange error: \(error)")
             return false
         }
     }
@@ -221,25 +246,6 @@ final class CredentialManager {
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
         return (verifier, challenge)
-    }
-
-    // MARK: - Keychain Cleanup
-
-    private func cleanupKeychain() {
-        // Remove all generic password items for our service
-        for service in ["com.dkkang.cc-rate-widget", "cc-rate-widget", "ClaudeRateWidget"] {
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: service,
-            ]
-            SecItemDelete(query as CFDictionary)
-        }
-        // Also remove any items matching our bundle ID prefix
-        let bundleQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrLabel as String: "com.dkkang.cc-rate-widget",
-        ]
-        SecItemDelete(bundleQuery as CFDictionary)
     }
 }
 

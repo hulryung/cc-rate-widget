@@ -20,5 +20,16 @@
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>LSUIElement</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>clauderatewidget</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.dkkang.cc-rate-widget</string>
+		</dict>
+	</array>
 </dict>
 </plist>

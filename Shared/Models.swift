@@ -72,11 +72,32 @@ struct OverageData {
     let limit: Double        // dollars
 }
 
+struct UserInfo: Codable {
+    let email: String?
+    let name: String?
+
+    var displayLabel: String? {
+        name ?? email
+    }
+}
+
+struct UserInfoResponse: Codable {
+    let email: String?
+    let name: String?
+    let displayName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case email, name
+        case displayName = "display_name"
+    }
+}
+
 enum OverallStatus: String {
     case active
     case warning
     case rateLimited = "rate_limited"
     case unauthorized
+    case notLoggedIn = "not_logged_in"
     case error
     case unknown
 
@@ -86,6 +107,7 @@ enum OverallStatus: String {
         case .warning: return "Warning"
         case .rateLimited: return "Rate Limited"
         case .unauthorized: return "Session Expired"
+        case .notLoggedIn: return "Not Logged In"
         case .error: return "Error"
         case .unknown: return "Unknown"
         }

@@ -7,6 +7,9 @@ final class RateFetcher {
     private init() {}
 
     func fetchRateData() async -> RateData {
+        guard CredentialManager.shared.hasCredentials else {
+            return errorData(status: .notLoggedIn)
+        }
         guard let token = await CredentialManager.shared.refreshTokenIfNeeded() else {
             return errorData()
         }
@@ -90,6 +93,37 @@ final class RateFetcher {
         if let date = formatter.date(from: string) { return date }
         formatter.formatOptions = [.withInternetDateTime]
         return formatter.date(from: string)
+    }
+
+    // MARK: - User Info
+
+    func fetchUserInfo() async -> UserInfo? {
+        guard let token = await CredentialManager.shared.refreshTokenIfNeeded() else { return nil }
+
+        // Try common OAuth userinfo endpoints
+        let endpoints = [
+            "https://api.anthropic.com/api/oauth/userinfo",
+            "https://api.anthropic.com/api/auth/userinfo",
+        ]
+
+        for endpoint in endpoints {
+            guard let url = URL(string: endpoint) else { continue }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+            request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+
+            if let (data, response) = try? await URLSession.shared.data(for: request),
+               let http = response as? HTTPURLResponse, http.statusCode == 200,
+               let info = try? JSONDecoder().decode(UserInfoResponse.self, from: data) {
+                let userInfo = UserInfo(email: info.email, name: info.name ?? info.displayName)
+                CredentialManager.shared.saveUserInfo(userInfo)
+                return userInfo
+            }
+        }
+        return CredentialManager.shared.loadUserInfo()
     }
 
     private func errorData(status: OverallStatus = .error) -> RateData {
