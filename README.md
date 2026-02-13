@@ -1,6 +1,6 @@
 # Claude Rate Widget
 
-**[Homepage](https://hulryung.github.io/cc-rate-widget/)** | **[Download](https://github.com/hulryung/cc-rate-widget/releases/latest)**
+**[Homepage](https://rate.huconn.xyz/)** | **[Download](https://github.com/hulryung/cc-rate-widget/releases/latest)**
 
 A free, open-source native macOS widget that monitors your Claude Code rate limits at a glance. Never hit a rate limit unexpectedly again.
 
