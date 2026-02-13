@@ -1,0 +1,13 @@
+title: Claude Rate Widget
+description: Monitor your Claude Code rate limits at a glance
+url: https://hulryung.github.io
+baseurl: /cc-rate-widget
+theme: null
+
+github_repo: https://github.com/hulryung/cc-rate-widget
+download_url: https://github.com/hulryung/cc-rate-widget/releases/latest
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
