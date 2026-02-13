@@ -1,7 +1,7 @@
 title: Claude Rate Widget
 description: Free, open-source macOS widget to track your Claude Code rate limits
-url: https://hulryung.github.io
-baseurl: /cc-rate-widget
+url: https://rate.huconn.xyz
+baseurl: ""
 theme: null
 
 github_repo: https://github.com/hulryung/cc-rate-widget
