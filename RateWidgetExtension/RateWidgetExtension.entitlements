@@ -10,5 +10,9 @@
 	<array>
 		<string>group.com.dkkang.cc-rate-widget</string>
 	</array>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.dkkang.cc-rate-widget.shared</string>
+	</array>
 </dict>
 </plist>

@@ -14,20 +14,25 @@ final class CredentialManager {
     private init() {}
 
     // MARK: - Keychain Storage
-    // Sandboxed apps use the login keychain without prompts
-
+    // Shared keychain access group so both app and widget extension can read/write
     private static let keychainService = "com.dkkang.cc-rate-widget.shared"
+    private static let keychainAccessGroup = "XGJ87M8ZZR.com.dkkang.cc-rate-widget.shared"
 
-    @discardableResult
-    private func keychainSave(key: String, data: Data) -> Bool {
-        let query: [String: Any] = [
+    private func baseQuery(key: String) -> [String: Any] {
+        [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.keychainService,
             kSecAttrAccount as String: key,
+            kSecAttrAccessGroup as String: Self.keychainAccessGroup,
+            kSecUseDataProtectionKeychain as String: true,
         ]
-        SecItemDelete(query as CFDictionary)
+    }
 
-        var addQuery = query
+    @discardableResult
+    private func keychainSave(key: String, data: Data) -> Bool {
+        SecItemDelete(baseQuery(key: key) as CFDictionary)
+
+        var addQuery = baseQuery(key: key)
         addQuery[kSecValueData as String] = data
         addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         let status = SecItemAdd(addQuery as CFDictionary, nil)
@@ -38,13 +43,9 @@ final class CredentialManager {
     }
 
     private func keychainLoad(key: String) -> Data? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.keychainService,
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
+        var query = baseQuery(key: key)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         guard status == errSecSuccess else { return nil }
@@ -52,12 +53,7 @@ final class CredentialManager {
     }
 
     private func keychainDelete(key: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.keychainService,
-            kSecAttrAccount as String: key,
-        ]
-        SecItemDelete(query as CFDictionary)
+        SecItemDelete(baseQuery(key: key) as CFDictionary)
     }
 
     // MARK: - Credential Storage (via Keychain)
