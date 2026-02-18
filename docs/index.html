@@ -161,27 +161,49 @@ description: Free, open-source macOS widget that tracks your Claude Code API rat
 <section class="installation" id="install">
   <div class="container">
     <div class="section-header">
-      <h2 class="fade-in">Up and Running in Minutes</h2>
-      <p class="fade-in d1">Four simple steps to start monitoring your Claude Code rate limits.</p>
+      <h2 class="fade-in">Up and Running in Seconds</h2>
+      <p class="fade-in d1">Install with Homebrew and start monitoring your Claude Code rate limits.</p>
+    </div>
+
+    <div class="install-methods">
+      <!-- Homebrew -->
+      <div class="install-method primary fade-in d2">
+        <div class="install-method-header">
+          <span class="install-badge recommended">Recommended</span>
+          <h3>Homebrew</h3>
+        </div>
+        <div class="install-code">
+          <code>brew install hulryung/tap/claude-rate-widget</code>
+          <button class="copy-btn" onclick="navigator.clipboard.writeText('brew install hulryung/tap/claude-rate-widget');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy command">Copy</button>
+        </div>
+        <p class="install-note">One command to install. Run <code>brew upgrade claude-rate-widget</code> to update.</p>
+      </div>
+
+      <!-- Manual -->
+      <div class="install-method fade-in d3">
+        <div class="install-method-header">
+          <h3>Manual Download</h3>
+        </div>
+        <p class="install-note">Download the latest <a href="{{ site.download_url }}">DMG from GitHub Releases</a> and drag the app to your Applications folder.</p>
+      </div>
+    </div>
+
+    <div class="section-header" style="margin-top: 80px; margin-bottom: 48px;">
+      <h3 class="fade-in" style="font-size: 20px; font-weight: 600;">After Install</h3>
     </div>
     <div class="steps">
       <div class="step fade-in d1">
         <div class="step-number">1</div>
-        <h3>Download DMG</h3>
-        <p>Grab the latest release from GitHub.</p>
+        <h3>Launch App</h3>
+        <p>Open Claude Rate Widget from your Applications folder.</p>
       </div>
       <div class="step fade-in d2">
         <div class="step-number">2</div>
-        <h3>Install App</h3>
-        <p>Drag Claude Rate Widget to your Applications folder.</p>
-      </div>
-      <div class="step fade-in d3">
-        <div class="step-number">3</div>
         <h3>Log In</h3>
         <p>Authenticate with your Anthropic account via OAuth.</p>
       </div>
-      <div class="step fade-in d4">
-        <div class="step-number">4</div>
+      <div class="step fade-in d3">
+        <div class="step-number">3</div>
         <h3>Add Widget</h3>
         <p>Right-click your desktop and add the widget from the gallery.</p>
       </div>
