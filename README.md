@@ -21,10 +21,21 @@ A free, open-source native macOS widget that monitors your Claude Code rate limi
 
 ## Install
 
+### Homebrew (recommended)
+
+```bash
+brew install hulryung/tap/claude-rate-widget
+```
+
+### Manual
+
 1. **Download** the latest DMG from [Releases](https://github.com/hulryung/cc-rate-widget/releases/latest)
 2. **Drag** Claude Rate Widget to your Applications folder
-3. **Launch** the app and log in with your Anthropic account
-4. **Add widget** — Right-click your desktop > Edit Widgets > search "Claude Rate Monitor"
+
+### After install
+
+1. **Launch** the app and log in with your Anthropic account
+2. **Add widget** — Right-click your desktop > Edit Widgets > search "Claude Rate Monitor"
 
 ### Requirements
 
