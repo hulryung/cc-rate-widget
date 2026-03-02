@@ -28,6 +28,8 @@ struct ContentView: View {
                     loginPromptView
                 } else if let data = rateData, data.status == .unauthorized {
                     sessionExpiredView
+                } else if let data = rateData, data.status == .forbidden {
+                    forbiddenView
                 } else if let data = rateData, data.status == .error {
                     errorView
                 } else if let data = rateData {
@@ -188,6 +190,31 @@ struct ContentView: View {
         .padding()
     }
 
+    private var forbiddenView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "lock.shield")
+                .font(.largeTitle)
+                .foregroundStyle(.red)
+            Text("Access Blocked")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Text("Anthropic has restricted third-party\nOAuth access. Please re-login to retry.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            if let loginError {
+                Text(loginError)
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            }
+            OAuthLoginButton(
+                onSuccess: { credentialVersion += 1; Task { await loadData() } },
+                onError: { loginError = $0 }
+            )
+        }
+        .padding()
+    }
+
     private var errorView: some View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
@@ -246,7 +273,7 @@ struct ContentView: View {
         defer { isLoading = false }
         let data = await RateFetcher.shared.fetchRateData()
         rateData = data
-        if data.status != .error && data.status != .unauthorized {
+        if data.status != .error && data.status != .unauthorized && data.status != .forbidden {
             CredentialManager.shared.saveCachedRateData(data)
         }
         WidgetCenter.shared.reloadAllTimelines()
@@ -258,6 +285,7 @@ struct ContentView: View {
         case .warning: return .orange
         case .rateLimited: return .red
         case .unauthorized: return .red
+        case .forbidden: return .red
         case .notLoggedIn: return .orange
         case .error: return .gray
         case .unknown: return .gray

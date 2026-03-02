@@ -6,9 +6,9 @@ final class CredentialManager {
 
     static let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
     static let authURL = "https://claude.ai/oauth/authorize"
-    static let tokenExchangeURL = "https://console.anthropic.com/v1/oauth/token"
+    static let tokenExchangeURL = "https://platform.claude.com/v1/oauth/token"
     static let tokenRefreshURL = "https://platform.claude.com/v1/oauth/token"
-    static let redirectURI = "https://console.anthropic.com/oauth/code/callback"
+    static let redirectURI = "https://platform.claude.com/oauth/code/callback"
     static let scopes = "org:create_api_key user:profile user:inference"
 
     private init() {}
@@ -114,6 +114,8 @@ final class CredentialManager {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
+                let httpResp = response as? HTTPURLResponse
+                NSLog("[OAuth] Token refresh failed: \(httpResp?.statusCode ?? -1) \(String(data: data, encoding: .utf8) ?? "")")
                 return creds.accessToken
             }
             let tokenResp = try JSONDecoder().decode(TokenResponse.self, from: data)

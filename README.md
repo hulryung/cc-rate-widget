@@ -42,6 +42,15 @@ brew install hulryung/tap/claude-rate-widget
 - macOS 14.0 (Sonoma) or later
 - Active Claude Code / Claude Max subscription
 
+## Changelog
+
+### v1.5.0
+
+- Fix API compatibility: handle nullable `extra_usage.utilization` field in Anthropic usage API response
+- Update OAuth endpoints from `console.anthropic.com` to `platform.claude.com` following Anthropic's domain migration (Jan 2026)
+- Add `forbidden` status handling for Anthropic's third-party OAuth restrictions
+- Improve error logging for easier debugging of token refresh and API failures
+
 ---
 
 ## Development

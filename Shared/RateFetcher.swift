@@ -35,13 +35,21 @@ final class RateFetcher {
                 return errorData(status: .unauthorized)
             }
 
+            if httpResponse.statusCode == 403 {
+                NSLog("[RateFetcher] 403 Forbidden – OAuth token may be blocked for third-party use: \(String(data: data, encoding: .utf8) ?? "")")
+                return errorData(status: .forbidden)
+            }
+
             guard httpResponse.statusCode == 200 else {
+                NSLog("[RateFetcher] Unexpected status \(httpResponse.statusCode): \(String(data: data, encoding: .utf8) ?? "")")
                 return errorData()
             }
 
+            NSLog("[RateFetcher] Response (%d): %@", httpResponse.statusCode, String(data: data, encoding: .utf8) ?? "<binary>")
             let usage = try JSONDecoder().decode(UsageResponse.self, from: data)
             return mapResponse(usage)
         } catch {
+            NSLog("[RateFetcher] Decode error: %@", "\(error)")
             return errorData()
         }
     }
@@ -61,7 +69,7 @@ final class RateFetcher {
         )
         let overage = OverageData(
             isEnabled: usage.extraUsage.isEnabled,
-            utilization: usage.extraUsage.utilization / 100.0,
+            utilization: (usage.extraUsage.utilization ?? 0) / 100.0,
             spent: (usage.extraUsage.usedCredits ?? 0) / 100.0,
             limit: (usage.extraUsage.monthlyLimit ?? 0) / 100.0
         )

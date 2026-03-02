@@ -282,6 +282,7 @@ private func statusColor(_ status: OverallStatus) -> Color {
     case .warning: return .orange
     case .rateLimited: return .red
     case .unauthorized: return .red
+    case .forbidden: return .red
     case .notLoggedIn: return .orange
     case .error, .unknown: return .gray
     }

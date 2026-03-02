@@ -28,7 +28,7 @@ struct RateCategory: Codable {
 
 struct ExtraUsage: Codable {
     let isEnabled: Bool
-    let utilization: Double
+    let utilization: Double?
     let usedCredits: Double?
     let monthlyLimit: Double?
 
@@ -77,6 +77,7 @@ enum OverallStatus: String {
     case warning
     case rateLimited = "rate_limited"
     case unauthorized
+    case forbidden
     case notLoggedIn = "not_logged_in"
     case error
     case unknown
@@ -87,6 +88,7 @@ enum OverallStatus: String {
         case .warning: return "Warning"
         case .rateLimited: return "Rate Limited"
         case .unauthorized: return "Session Expired"
+        case .forbidden: return "Access Blocked"
         case .notLoggedIn: return "Not Logged In"
         case .error: return "Error"
         case .unknown: return "Unknown"
