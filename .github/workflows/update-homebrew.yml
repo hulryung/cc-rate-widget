@@ -10,15 +10,39 @@ jobs:
     steps:
       - name: Get release info
         id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          EXPECTED_NAME="ClaudeRateWidget-${TAG}.dmg"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-          DMG_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/ClaudeRateWidget-${GITHUB_REF_NAME}.dmg"
-          echo "dmg_url=$DMG_URL" >> "$GITHUB_OUTPUT"
+          # Find the actual DMG asset name in the release
+          ACTUAL_NAME=$(gh release view "$TAG" --repo "${{ github.repository }}" --json assets -q '.assets[] | select(.name | endswith(".dmg")) | .name')
 
-          curl -sL "$DMG_URL" -o /tmp/release.dmg
-          SHA256=$(shasum -a 256 /tmp/release.dmg | awk '{print $1}')
+          if [ -z "$ACTUAL_NAME" ]; then
+            echo "::error::No DMG asset found in release $TAG"
+            exit 1
+          fi
+
+          if [ "$ACTUAL_NAME" != "$EXPECTED_NAME" ]; then
+            echo "::warning::DMG name mismatch: expected '$EXPECTED_NAME', found '$ACTUAL_NAME'. Renaming..."
+            gh release delete-asset "$TAG" "$ACTUAL_NAME" --repo "${{ github.repository }}" --yes
+            gh release download "$TAG" --repo "${{ github.repository }}" --pattern "*.dmg" --skip-existing -D /tmp || true
+            mv "/tmp/$ACTUAL_NAME" "/tmp/$EXPECTED_NAME" 2>/dev/null || true
+            # Re-download with correct URL if rename failed
+            if [ ! -f "/tmp/$EXPECTED_NAME" ]; then
+              DMG_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${ACTUAL_NAME}"
+              curl -sL "$DMG_URL" -o "/tmp/$EXPECTED_NAME"
+            fi
+            gh release upload "$TAG" "/tmp/$EXPECTED_NAME" --repo "${{ github.repository }}"
+          else
+            DMG_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${EXPECTED_NAME}"
+            curl -sL "$DMG_URL" -o "/tmp/$EXPECTED_NAME"
+          fi
+
+          SHA256=$(shasum -a 256 "/tmp/$EXPECTED_NAME" | awk '{print $1}')
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
 
       - name: Update cask in homebrew-tap
