@@ -222,7 +222,8 @@ struct CachedRateData: Codable {
             weeklySonnet: CategoryData(utilization: weeklySonnetUtilization, resetsAt: weeklySonnetResetsAt.map { Date(timeIntervalSince1970: $0) }),
             overage: OverageData(isEnabled: overageIsEnabled, utilization: overageUtilization, spent: overageSpent, limit: overageLimit),
             fetchedAt: Date(timeIntervalSince1970: fetchedAt),
-            status: OverallStatus(rawValue: status) ?? .unknown
+            status: OverallStatus(rawValue: status) ?? .unknown,
+            source: .jsonl
         )
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 
-final class RateFetcher {
-    static let shared = RateFetcher()
+final class OAuthClient {
+    static let shared = OAuthClient()
     private let endpoint = "https://api.anthropic.com/api/oauth/usage"
 
     private init() {}
@@ -36,20 +36,20 @@ final class RateFetcher {
             }
 
             if httpResponse.statusCode == 403 {
-                NSLog("[RateFetcher] 403 Forbidden – OAuth token may be blocked for third-party use: \(String(data: data, encoding: .utf8) ?? "")")
+                NSLog("[OAuthClient] 403 Forbidden – OAuth token may be blocked for third-party use: \(String(data: data, encoding: .utf8) ?? "")")
                 return errorData(status: .forbidden)
             }
 
             guard httpResponse.statusCode == 200 else {
-                NSLog("[RateFetcher] Unexpected status \(httpResponse.statusCode): \(String(data: data, encoding: .utf8) ?? "")")
+                NSLog("[OAuthClient] Unexpected status \(httpResponse.statusCode): \(String(data: data, encoding: .utf8) ?? "")")
                 return errorData()
             }
 
-            NSLog("[RateFetcher] Response (%d): %@", httpResponse.statusCode, String(data: data, encoding: .utf8) ?? "<binary>")
+            NSLog("[OAuthClient] Response (%d): %@", httpResponse.statusCode, String(data: data, encoding: .utf8) ?? "<binary>")
             let usage = try JSONDecoder().decode(UsageResponse.self, from: data)
             return mapResponse(usage)
         } catch {
-            NSLog("[RateFetcher] Decode error: %@", "\(error)")
+            NSLog("[OAuthClient] Decode error: %@", "\(error)")
             return errorData()
         }
     }
@@ -90,7 +90,8 @@ final class RateFetcher {
             weeklySonnet: weeklySonnet,
             overage: overage,
             fetchedAt: Date(),
-            status: status
+            status: status,
+            source: .oauth
         )
     }
 
@@ -112,7 +113,8 @@ final class RateFetcher {
             weeklySonnet: CategoryData(utilization: 0, resetsAt: nil),
             overage: OverageData(isEnabled: false, utilization: 0, spent: 0, limit: 0),
             fetchedAt: Date(),
-            status: status
+            status: status,
+            source: .oauth
         )
     }
 }
