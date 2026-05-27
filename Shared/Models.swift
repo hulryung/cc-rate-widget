@@ -127,6 +127,19 @@ struct ProjectBreakdown: Codable {
     func topN(_ n: Int) -> [Entry] {
         entries.sorted(by: { $0.tokens > $1.tokens }).prefix(n).map { $0 }
     }
+
+    init(entries: [Entry], aliases: [String: String] = [:]) {
+        self.entries = entries
+        self.aliases = aliases
+    }
+
+    private enum CodingKeys: String, CodingKey { case entries, aliases }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.entries = try c.decodeIfPresent([Entry].self, forKey: .entries) ?? []
+        self.aliases = try c.decodeIfPresent([String: String].self, forKey: .aliases) ?? [:]
+    }
 }
 
 // MARK: - Inferred Limits
@@ -152,5 +165,44 @@ struct InferredLimits: Codable {
         case pro
         case max5
         case max20
+    }
+
+    init(
+        fiveHourTokens: Int? = nil,
+        sevenDayTokens: Int? = nil,
+        sevenDaySonnetTokens: Int? = nil,
+        weeklyMaxObserved: Int = 0,
+        fiveHourMaxObserved: Int = 0,
+        officialFiveHourTokens: Int? = nil,
+        officialSevenDayTokens: Int? = nil,
+        manualPlanTier: ManualPlanTier? = nil
+    ) {
+        self.fiveHourTokens = fiveHourTokens
+        self.sevenDayTokens = sevenDayTokens
+        self.sevenDaySonnetTokens = sevenDaySonnetTokens
+        self.weeklyMaxObserved = weeklyMaxObserved
+        self.fiveHourMaxObserved = fiveHourMaxObserved
+        self.officialFiveHourTokens = officialFiveHourTokens
+        self.officialSevenDayTokens = officialSevenDayTokens
+        self.manualPlanTier = manualPlanTier
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case fiveHourTokens, sevenDayTokens, sevenDaySonnetTokens
+        case weeklyMaxObserved, fiveHourMaxObserved
+        case officialFiveHourTokens, officialSevenDayTokens
+        case manualPlanTier
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.fiveHourTokens         = try c.decodeIfPresent(Int.self, forKey: .fiveHourTokens)
+        self.sevenDayTokens         = try c.decodeIfPresent(Int.self, forKey: .sevenDayTokens)
+        self.sevenDaySonnetTokens   = try c.decodeIfPresent(Int.self, forKey: .sevenDaySonnetTokens)
+        self.weeklyMaxObserved      = try c.decodeIfPresent(Int.self, forKey: .weeklyMaxObserved) ?? 0
+        self.fiveHourMaxObserved    = try c.decodeIfPresent(Int.self, forKey: .fiveHourMaxObserved) ?? 0
+        self.officialFiveHourTokens = try c.decodeIfPresent(Int.self, forKey: .officialFiveHourTokens)
+        self.officialSevenDayTokens = try c.decodeIfPresent(Int.self, forKey: .officialSevenDayTokens)
+        self.manualPlanTier         = try c.decodeIfPresent(ManualPlanTier.self, forKey: .manualPlanTier)
     }
 }
