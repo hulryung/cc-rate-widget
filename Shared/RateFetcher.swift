@@ -90,7 +90,8 @@ final class RateFetcher {
             weeklySonnet: weeklySonnet,
             overage: overage,
             fetchedAt: Date(),
-            status: status
+            status: status,
+            source: .oauth
         )
     }
 
@@ -112,7 +113,8 @@ final class RateFetcher {
             weeklySonnet: CategoryData(utilization: 0, resetsAt: nil),
             overage: OverageData(isEnabled: false, utilization: 0, spent: 0, limit: 0),
             fetchedAt: Date(),
-            status: status
+            status: status,
+            source: .oauth
         )
     }
 }

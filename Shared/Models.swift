@@ -49,6 +49,7 @@ struct RateData {
     let overage: OverageData        // extra_usage
     let fetchedAt: Date
     let status: OverallStatus
+    let source: RateDataSource
 
     static let placeholder = RateData(
         session: CategoryData(utilization: 0.35, resetsAt: Date().addingTimeInterval(3600)),
@@ -56,7 +57,8 @@ struct RateData {
         weeklySonnet: CategoryData(utilization: 0.28, resetsAt: Date().addingTimeInterval(86400)),
         overage: OverageData(isEnabled: false, utilization: 0, spent: 0, limit: 0),
         fetchedAt: Date(),
-        status: .active
+        status: .active,
+        source: .jsonl
     )
 }
 
@@ -81,6 +83,7 @@ enum OverallStatus: String {
     case notLoggedIn = "not_logged_in"
     case error
     case unknown
+    case noLocalData = "no_local_data"
 
     var label: String {
         switch self {
@@ -92,6 +95,62 @@ enum OverallStatus: String {
         case .notLoggedIn: return "Not Logged In"
         case .error: return "Error"
         case .unknown: return "Unknown"
+        case .noLocalData: return "No Local Data"
         }
+    }
+}
+
+// MARK: - Data Source
+
+enum RateDataSource: String, Codable {
+    case jsonl
+    case oauth
+    case hybrid
+    case partial            // backfill in progress
+    case noLocalData = "no_local_data"
+}
+
+// MARK: - Project Breakdown
+
+struct ProjectBreakdown: Codable {
+    struct Entry: Codable, Identifiable, Equatable {
+        var id: String { path }
+        let displayName: String
+        let path: String          // raw cwd
+        let tokens: Int
+        let cost: Double          // USD
+    }
+
+    let entries: [Entry]
+    var aliases: [String: String] = [:]   // cwd → user-chosen display name
+
+    func topN(_ n: Int) -> [Entry] {
+        entries.sorted(by: { $0.tokens > $1.tokens }).prefix(n).map { $0 }
+    }
+}
+
+// MARK: - Inferred Limits
+
+struct InferredLimits: Codable {
+    /// nil when we don't yet have a confident estimate (learning state).
+    var fiveHourTokens: Int? = nil
+    var sevenDayTokens: Int? = nil
+    var sevenDaySonnetTokens: Int? = nil
+
+    /// Highest 7d-window total ever observed (for rolling 1.05× ratchet).
+    var weeklyMaxObserved: Int = 0
+    var fiveHourMaxObserved: Int = 0
+
+    /// Optional cached values pulled from OAuth (when enabled).
+    var officialFiveHourTokens: Int? = nil
+    var officialSevenDayTokens: Int? = nil
+
+    /// Manual user override; when non-nil, beats both P90 and official.
+    var manualPlanTier: ManualPlanTier? = nil
+
+    enum ManualPlanTier: String, Codable {
+        case pro
+        case max5
+        case max20
     }
 }

@@ -289,6 +289,7 @@ struct ContentView: View {
         case .notLoggedIn: return .orange
         case .error: return .gray
         case .unknown: return .gray
+        case .noLocalData: return .gray
         }
     }
 
