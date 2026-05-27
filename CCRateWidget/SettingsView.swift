@@ -29,7 +29,8 @@ struct SettingsView: View {
             }
             Section("Anthropic OAuth (optional)") {
                 Toggle("Pull official quota when available", isOn: $store.oauthEnabled)
-                Text("Off by default. Anthropic's terms discourage third-party OAuth use; enabling places that responsibility on you.")
+                    .disabled(true)
+                Text("Coming in a later release. Off and inert in 1.7 — the widget runs entirely on local JSONL data.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section("Data") {

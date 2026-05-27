@@ -10,16 +10,20 @@ enum Backfill {
 
     static func runIfNeeded(rootDir: URL, store: AppGroupStore) {
         guard !didRun else { return }
+        // Set the guard flag BEFORE the scan so concurrent runOnce() calls
+        // don't each launch their own scan. Reset on failure so the user
+        // gets retried later instead of being stuck in a no-history state.
+        UserDefaults.standard.set(true, forKey: didRunKey)
         Task.detached(priority: .background) {
             do {
                 let samples = try buildWeeklySamples(rootDir: rootDir)
                 var limits = (try? store.readLimits()) ?? InferredLimits()
                 limits.weeklySamples = samples
                 try store.writeLimits(limits)
-                UserDefaults.standard.set(true, forKey: didRunKey)
                 await MainActor.run { AggregationCoordinator.shared.runOnce() }
             } catch {
                 NSLog("[Backfill] failed: \(error)")
+                UserDefaults.standard.set(false, forKey: didRunKey)
             }
         }
     }
