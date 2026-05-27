@@ -73,10 +73,3 @@ extension NSApplication {
     }
 }
 
-// Temporary stub — real implementation is Task 17.
-// If `HomeAccessPrompter` already exists from Task 17, REMOVE this stub.
-final class HomeAccessPrompter {
-    static let shared = HomeAccessPrompter()
-    private init() {}
-    func prompt() {}
-}
