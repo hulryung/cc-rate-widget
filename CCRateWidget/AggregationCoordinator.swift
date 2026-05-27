@@ -67,14 +67,16 @@ final class AggregationCoordinator: ObservableObject {
             return r
         }
 
+        Backfill.runIfNeeded(rootDir: root, store: store)
+
         let aggregator = JSONLAggregator(rootDir: root, store: store)
         let snap = try aggregator.aggregate(now: Date())
         var limits = (try store.readLimits()) ?? InferredLimits(weeklyMaxObserved: 0,
                                                                 fiveHourMaxObserved: 0)
         let inferred = LimitInferrer.infer(
             currentSnapshot: snap,
-            weeklySamples: [],          // sample history wired by Task 19 backfill
-            fiveHourSamples: [],
+            weeklySamples: limits.weeklySamples,
+            fiveHourSamples: limits.fiveHourSamples,
             limits: &limits
         )
         try store.writeLimits(limits)

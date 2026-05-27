@@ -158,6 +158,9 @@ struct InferredLimits: Codable {
     var officialFiveHourTokens: Int? = nil
     var officialSevenDayTokens: Int? = nil
 
+    var weeklySamples: [Int] = []
+    var fiveHourSamples: [Int] = []
+
     /// Manual user override; when non-nil, beats both P90 and official.
     var manualPlanTier: ManualPlanTier? = nil
 
@@ -175,6 +178,8 @@ struct InferredLimits: Codable {
         fiveHourMaxObserved: Int = 0,
         officialFiveHourTokens: Int? = nil,
         officialSevenDayTokens: Int? = nil,
+        weeklySamples: [Int] = [],
+        fiveHourSamples: [Int] = [],
         manualPlanTier: ManualPlanTier? = nil
     ) {
         self.fiveHourTokens = fiveHourTokens
@@ -184,6 +189,8 @@ struct InferredLimits: Codable {
         self.fiveHourMaxObserved = fiveHourMaxObserved
         self.officialFiveHourTokens = officialFiveHourTokens
         self.officialSevenDayTokens = officialSevenDayTokens
+        self.weeklySamples = weeklySamples
+        self.fiveHourSamples = fiveHourSamples
         self.manualPlanTier = manualPlanTier
     }
 
@@ -191,6 +198,7 @@ struct InferredLimits: Codable {
         case fiveHourTokens, sevenDayTokens, sevenDaySonnetTokens
         case weeklyMaxObserved, fiveHourMaxObserved
         case officialFiveHourTokens, officialSevenDayTokens
+        case weeklySamples, fiveHourSamples
         case manualPlanTier
     }
 
@@ -203,6 +211,8 @@ struct InferredLimits: Codable {
         self.fiveHourMaxObserved    = try c.decodeIfPresent(Int.self, forKey: .fiveHourMaxObserved) ?? 0
         self.officialFiveHourTokens = try c.decodeIfPresent(Int.self, forKey: .officialFiveHourTokens)
         self.officialSevenDayTokens = try c.decodeIfPresent(Int.self, forKey: .officialSevenDayTokens)
+        self.weeklySamples          = try c.decodeIfPresent([Int].self, forKey: .weeklySamples) ?? []
+        self.fiveHourSamples        = try c.decodeIfPresent([Int].self, forKey: .fiveHourSamples) ?? []
         self.manualPlanTier         = try c.decodeIfPresent(ManualPlanTier.self, forKey: .manualPlanTier)
     }
 }
