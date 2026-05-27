@@ -65,15 +65,11 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dkkang.cc-rate-widget.tests
         INFOPLIST_FILE: CCRateWidgetTests/Info.plist
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Claude Rate Widget.app/Contents/MacOS/Claude Rate Widget"
-        BUNDLE_LOADER: "$(TEST_HOST)"
         ENABLE_APP_SANDBOX: false
         CODE_SIGN_ENTITLEMENTS: ""
         CODE_SIGNING_REQUIRED: false
         CODE_SIGN_IDENTITY: ""
         PROVISIONING_PROFILE_SPECIFIER: ""
-    dependencies:
-      - target: CCRateWidget
 
 schemes:
   CCRateWidget:
