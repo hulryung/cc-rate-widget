@@ -74,6 +74,9 @@ struct SmallWidgetView: View {
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(statusColor(entry.data.status))
         }
+        .overlay(alignment: .topTrailing) {
+            SourceBadge(source: entry.data.source).padding(6)
+        }
     }
 
     private func miniBar(label: String, value: Double) -> some View {
@@ -132,6 +135,9 @@ struct MediumWidgetView: View {
             }
         }
         .padding(2)
+        .overlay(alignment: .topTrailing) {
+            SourceBadge(source: entry.data.source).padding(6)
+        }
     }
 
     private func categoryColumn(label: String, data: CategoryData) -> some View {
@@ -215,12 +221,22 @@ struct LargeWidgetView: View {
                 overageDetailRow(entry.data.overage)
             }
 
+            Divider()
+            if let projects = entry.projects {
+                LargeProjectStrip(projects: projects)
+            } else {
+                LargeProjectStrip(projects: ProjectBreakdown(entries: []))
+            }
+
             Spacer(minLength: 0)
 
             Text("Updated \(entry.date.formatted(date: .omitted, time: .shortened))")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .overlay(alignment: .topTrailing) {
+            SourceBadge(source: entry.data.source).padding(6)
         }
     }
 
@@ -270,6 +286,69 @@ struct LargeWidgetView: View {
                 }
             }
             .frame(height: 8)
+        }
+    }
+}
+
+// MARK: - Source Badge
+
+struct SourceBadge: View {
+    let source: RateDataSource
+    var body: some View {
+        Text(label)
+            .font(.system(size: 8, weight: .semibold))
+            .padding(.horizontal, 4).padding(.vertical, 1)
+            .background(Capsule().fill(color.opacity(0.25)))
+            .foregroundStyle(color)
+            .accessibilityLabel("Data source: \(label)")
+    }
+    private var label: String {
+        switch source {
+        case .jsonl: return "LOCAL"
+        case .oauth: return "OAUTH"
+        case .hybrid: return "HYBRID"
+        case .partial: return "LEARNING"
+        case .noLocalData: return "SETUP"
+        }
+    }
+    private var color: Color {
+        switch source {
+        case .jsonl:       return .secondary
+        case .oauth:       return .blue
+        case .hybrid:      return .green
+        case .partial:     return .orange
+        case .noLocalData: return .red
+        }
+    }
+}
+
+// MARK: - Large Project Strip
+
+struct LargeProjectStrip: View {
+    let projects: ProjectBreakdown
+    var body: some View {
+        let top = projects.topN(3)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Top projects")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            ForEach(top) { entry in
+                HStack {
+                    Text(entry.displayName)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Text("\(entry.tokens / 1000)k")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+            if top.isEmpty {
+                Text("No activity yet")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
         }
     }
 }
