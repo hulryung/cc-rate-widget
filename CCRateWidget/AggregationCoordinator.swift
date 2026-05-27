@@ -117,12 +117,14 @@ final class AggregationCoordinator: ObservableObject {
 
         try store.writeRate(rate)
 
-        // Alert pass (placeholder — fire-state persistence lands in Task 13).
+        // Alert pass.
+        let storedAlert = (try? store.readAlertState()) ?? AlertState()
+
         let prevState = AlertEngine.State(
             utilization: 0,
-            resetsAt: nil,
-            lastThresholdFired: nil,
-            forecastFiredAt: nil,
+            resetsAt: storedAlert.windowResetsAt.map(Date.init(timeIntervalSince1970:)),
+            lastThresholdFired: storedAlert.lastThresholdFired,
+            forecastFiredAt: storedAlert.forecastFiredAt.map(Date.init(timeIntervalSince1970:)),
             burnTokensPerSec: 0,
             inferredLimitTokens: inferred.sevenDayTokens ?? 0,
             currentTokens: snap.sevenDayTokens
@@ -130,8 +132,8 @@ final class AggregationCoordinator: ObservableObject {
         let newState = AlertEngine.State(
             utilization: maxUtil,
             resetsAt: rate.weekly.resetsAt,
-            lastThresholdFired: nil,
-            forecastFiredAt: nil,
+            lastThresholdFired: storedAlert.lastThresholdFired,
+            forecastFiredAt: storedAlert.forecastFiredAt.map(Date.init(timeIntervalSince1970:)),
             burnTokensPerSec: snap.lastHalfHourTokensPerSecond,
             inferredLimitTokens: inferred.sevenDayTokens ?? 0,
             currentTokens: snap.sevenDayTokens
@@ -140,6 +142,23 @@ final class AggregationCoordinator: ObservableObject {
         #if canImport(UserNotifications)
         AlertEngine.deliver(alerts)
         #endif
+
+        // Persist updated fire-state.
+        var nextAlert = storedAlert
+        if rate.weekly.resetsAt?.timeIntervalSince1970 != storedAlert.windowResetsAt {
+            nextAlert.lastThresholdFired = nil
+            nextAlert.forecastFiredAt = nil
+            nextAlert.windowResetsAt = rate.weekly.resetsAt?.timeIntervalSince1970
+        }
+        for alert in alerts {
+            switch alert.kind {
+            case .threshold(let t):
+                nextAlert.lastThresholdFired = max(nextAlert.lastThresholdFired ?? 0, t)
+            case .forecast:
+                nextAlert.forecastFiredAt = now.timeIntervalSince1970
+            }
+        }
+        try? store.writeAlertState(nextAlert)
 
         return rate
     }

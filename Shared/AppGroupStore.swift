@@ -29,6 +29,14 @@ final class AppGroupStore {
     private var projectsURL: URL { containerURL.appendingPathComponent("projects.json") }
     private var limitsURL:   URL { containerURL.appendingPathComponent("limits.json") }
     private var offsetsURL:  URL { containerURL.appendingPathComponent("offsets.json") }
+    private var alertStateURL: URL { containerURL.appendingPathComponent("alert_state.json") }
+
+    fileprivate func readAlertStateRaw() throws -> AlertState? {
+        try read(alertStateURL, as: AlertState.self)
+    }
+    fileprivate func writeAlertStateRaw(_ value: AlertState) throws {
+        try atomicWrite(value, to: alertStateURL)
+    }
 
     // MARK: - Generic read/write
     private func read<T: Decodable>(_ url: URL, as type: T.Type) throws -> T? {
@@ -60,6 +68,43 @@ final class AppGroupStore {
 
     func readOffsets()  throws -> [String: UInt64]  { (try read(offsetsURL, as: [String: UInt64].self)) ?? [:] }
     func writeOffsets(_ value: [String: UInt64]) throws { try atomicWrite(value, to: offsetsURL) }
+}
+
+// MARK: - Alert State
+
+struct AlertState: Codable {
+    var lastThresholdFired: Double?
+    var forecastFiredAt: Double?
+    var windowResetsAt: Double?
+
+    init(lastThresholdFired: Double? = nil,
+         forecastFiredAt: Double? = nil,
+         windowResetsAt: Double? = nil) {
+        self.lastThresholdFired = lastThresholdFired
+        self.forecastFiredAt = forecastFiredAt
+        self.windowResetsAt = windowResetsAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case lastThresholdFired, forecastFiredAt, windowResetsAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.lastThresholdFired = try c.decodeIfPresent(Double.self, forKey: .lastThresholdFired)
+        self.forecastFiredAt    = try c.decodeIfPresent(Double.self, forKey: .forecastFiredAt)
+        self.windowResetsAt     = try c.decodeIfPresent(Double.self, forKey: .windowResetsAt)
+    }
+}
+
+extension AppGroupStore {
+    // Same-file extension; can access the file-private read/atomicWrite via internal helpers below.
+    func readAlertState() throws -> AlertState? {
+        try readAlertStateRaw()
+    }
+    func writeAlertState(_ value: AlertState) throws {
+        try writeAlertStateRaw(value)
+    }
 }
 
 // MARK: - On-disk RateData representation (snake-cased, stable)
