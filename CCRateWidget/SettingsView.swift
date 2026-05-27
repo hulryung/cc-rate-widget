@@ -44,7 +44,7 @@ struct SettingsView: View {
             Button("Quit and reopen") { NSApplication.relaunchApp() }
             Button("Later", role: .cancel) {}
         } message: {
-            Text("Menu bar mode setting saved. Relaunching attaches (or detaches) the menu-bar item this session.")
+            Text("Menu bar mode setting saved. The Dock icon will remain visible — relaunching is only needed to attach (or detach) the menu-bar item this session.")
         }
     }
 
