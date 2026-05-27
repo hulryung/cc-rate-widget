@@ -271,7 +271,7 @@ struct ContentView: View {
         guard isLoggedIn else { return }
         isLoading = true
         defer { isLoading = false }
-        let data = await RateFetcher.shared.fetchRateData()
+        let data = await OAuthClient.shared.fetchRateData()
         rateData = data
         if data.status != .error && data.status != .unauthorized && data.status != .forbidden {
             CredentialManager.shared.saveCachedRateData(data)

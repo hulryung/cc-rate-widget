@@ -27,7 +27,7 @@ struct RateProvider: TimelineProvider {
             completion(RateEntry(date: Date(), data: cached, isPlaceholder: false))
         } else {
             Task {
-                let data = await RateFetcher.shared.fetchRateData()
+                let data = await OAuthClient.shared.fetchRateData()
                 completion(RateEntry(date: Date(), data: data, isPlaceholder: false))
             }
         }
@@ -37,7 +37,7 @@ struct RateProvider: TimelineProvider {
         Task {
             let data: RateData
             // Try fetching live data first
-            let fetched = await RateFetcher.shared.fetchRateData()
+            let fetched = await OAuthClient.shared.fetchRateData()
             if fetched.status == .error || fetched.status == .unauthorized || fetched.status == .notLoggedIn {
                 // Fall back to cached data if available
                 data = CredentialManager.shared.loadCachedRateData() ?? fetched
