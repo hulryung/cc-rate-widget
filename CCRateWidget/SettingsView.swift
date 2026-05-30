@@ -7,18 +7,8 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Plan tier") {
-                Picker("Plan", selection: $store.manualPlanTier) {
-                    Text("Auto (P90)").tag("auto")
-                    Text("Pro").tag("pro")
-                    Text("Max5").tag("max5")
-                    Text("Max20").tag("max20")
-                }
-                .pickerStyle(.menu)
-                .onChange(of: store.manualPlanTier) { _, new in
-                    persistManualTier(new)
-                }
-                Text("Choose the tier that matches your subscription, or leave on Auto to let the widget estimate from your usage history.")
+            Section("Usage") {
+                Text("Claude Rate Widget reports the tokens and cost recorded in your local Claude Code logs. It does not estimate Anthropic's quota percentage — that requires the official API.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Section("Background") {
@@ -47,18 +37,6 @@ struct SettingsView: View {
         } message: {
             Text("Menu bar mode setting saved. The Dock icon will remain visible — relaunching is only needed to attach (or detach) the menu-bar item this session.")
         }
-    }
-
-    private func persistManualTier(_ raw: String) {
-        try? AppGroupStore.shared.mutateLimits { limits in
-            switch raw {
-            case "pro":   limits.manualPlanTier = .pro
-            case "max5":  limits.manualPlanTier = .max5
-            case "max20": limits.manualPlanTier = .max20
-            default:      limits.manualPlanTier = nil
-            }
-        }
-        AggregationCoordinator.shared.runOnce()
     }
 }
 

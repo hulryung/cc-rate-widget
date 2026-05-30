@@ -61,18 +61,23 @@ private struct DashboardSection: View {
 private struct LimitRow: View {
     let label: String
     let cat: CategoryData
+    var showCost: Bool = true
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(label).font(.headline)
-            ProgressView(value: min(cat.utilization, 1.0))
-            HStack {
-                Text("\(Int(cat.utilization * 100))%")
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("\(UsageFormat.tokens(cat.tokens)) tok")
+                    .font(.title3.weight(.semibold)).monospacedDigit()
+                if showCost && cat.cost > 0 {
+                    Text(UsageFormat.cost(cat.cost))
+                        .font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                }
                 Spacer()
                 if let resetsAt = cat.resetsAt {
                     Text("resets \(resetsAt, style: .relative)")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
-            .font(.caption).foregroundStyle(.secondary)
         }
     }
 }

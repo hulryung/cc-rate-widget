@@ -56,36 +56,6 @@ final class CredentialManager {
         defaults.removeObject(forKey: "cached_rate_data")
     }
 
-    // MARK: - Cached Rate Data
-
-    func saveCachedRateData(_ data: RateData) {
-        let cached = CachedRateData(
-            sessionUtilization: data.session.utilization,
-            sessionResetsAt: data.session.resetsAt?.timeIntervalSince1970,
-            weeklyUtilization: data.weekly.utilization,
-            weeklyResetsAt: data.weekly.resetsAt?.timeIntervalSince1970,
-            weeklySonnetUtilization: data.weeklySonnet.utilization,
-            weeklySonnetResetsAt: data.weeklySonnet.resetsAt?.timeIntervalSince1970,
-            overageIsEnabled: data.overage.isEnabled,
-            overageUtilization: data.overage.utilization,
-            overageSpent: data.overage.spent,
-            overageLimit: data.overage.limit,
-            fetchedAt: data.fetchedAt.timeIntervalSince1970,
-            status: data.status.rawValue
-        )
-        if let json = try? JSONEncoder().encode(cached) {
-            defaults.set(json, forKey: "cached_rate_data")
-        }
-    }
-
-    func loadCachedRateData() -> RateData? {
-        guard let data = defaults.data(forKey: "cached_rate_data"),
-              let cached = try? JSONDecoder().decode(CachedRateData.self, from: data) else {
-            return nil
-        }
-        return cached.toRateData()
-    }
-
     // MARK: - Token Refresh
 
     func refreshTokenIfNeeded() async -> String? {
@@ -199,31 +169,3 @@ struct TokenResponse: Codable {
     let expires_in: Double?
 }
 
-// MARK: - Cached Rate Data
-
-struct CachedRateData: Codable {
-    let sessionUtilization: Double
-    let sessionResetsAt: Double?
-    let weeklyUtilization: Double
-    let weeklyResetsAt: Double?
-    let weeklySonnetUtilization: Double
-    let weeklySonnetResetsAt: Double?
-    let overageIsEnabled: Bool
-    let overageUtilization: Double
-    let overageSpent: Double
-    let overageLimit: Double
-    let fetchedAt: Double
-    let status: String
-
-    func toRateData() -> RateData {
-        RateData(
-            session: CategoryData(utilization: sessionUtilization, resetsAt: sessionResetsAt.map { Date(timeIntervalSince1970: $0) }),
-            weekly: CategoryData(utilization: weeklyUtilization, resetsAt: weeklyResetsAt.map { Date(timeIntervalSince1970: $0) }),
-            weeklySonnet: CategoryData(utilization: weeklySonnetUtilization, resetsAt: weeklySonnetResetsAt.map { Date(timeIntervalSince1970: $0) }),
-            overage: OverageData(isEnabled: overageIsEnabled, utilization: overageUtilization, spent: overageSpent, limit: overageLimit),
-            fetchedAt: Date(timeIntervalSince1970: fetchedAt),
-            status: OverallStatus(rawValue: status) ?? .unknown,
-            source: .jsonl
-        )
-    }
-}

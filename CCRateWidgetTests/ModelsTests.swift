@@ -22,23 +22,6 @@ final class ModelsTests: XCTestCase {
 }
 
 extension ModelsTests {
-    func test_inferredLimits_decodesFromEmptyJSON() throws {
-        let json = "{}".data(using: .utf8)!
-        let decoded = try JSONDecoder().decode(InferredLimits.self, from: json)
-        XCTAssertEqual(decoded.weeklyMaxObserved, 0)
-        XCTAssertEqual(decoded.fiveHourMaxObserved, 0)
-        XCTAssertNil(decoded.fiveHourTokens)
-        XCTAssertNil(decoded.manualPlanTier)
-    }
-
-    func test_inferredLimits_decodesFromPartialJSON() throws {
-        let json = #"{"weeklyMaxObserved": 1234, "manualPlanTier": "max5"}"#.data(using: .utf8)!
-        let decoded = try JSONDecoder().decode(InferredLimits.self, from: json)
-        XCTAssertEqual(decoded.weeklyMaxObserved, 1234)
-        XCTAssertEqual(decoded.manualPlanTier, .max5)
-        XCTAssertEqual(decoded.fiveHourMaxObserved, 0)
-    }
-
     func test_projectBreakdown_decodesFromMissingAliases() throws {
         let json = #"{"entries":[]}"#.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(ProjectBreakdown.self, from: json)
@@ -46,11 +29,16 @@ extension ModelsTests {
         XCTAssertTrue(decoded.entries.isEmpty)
     }
 
-    func test_inferredLimits_roundTripsThroughJSON() throws {
-        let original = InferredLimits(weeklyMaxObserved: 99, manualPlanTier: .pro)
-        let data = try JSONEncoder().encode(original)
-        let back = try JSONDecoder().decode(InferredLimits.self, from: data)
-        XCTAssertEqual(back.weeklyMaxObserved, 99)
-        XCTAssertEqual(back.manualPlanTier, .pro)
+    func test_categoryData_holdsAbsoluteUsage() {
+        let c = CategoryData(tokens: 2_400_000, cost: 18.50, resetsAt: nil)
+        XCTAssertEqual(c.tokens, 2_400_000)
+        XCTAssertEqual(c.cost, 18.50, accuracy: 0.001)
+        XCTAssertNil(c.resetsAt)
+    }
+
+    func test_rateData_placeholder_isActiveLocal() {
+        XCTAssertEqual(RateData.placeholder.status, .active)
+        XCTAssertEqual(RateData.placeholder.source, .jsonl)
+        XCTAssertGreaterThan(RateData.placeholder.weekly.tokens, 0)
     }
 }

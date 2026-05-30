@@ -17,29 +17,34 @@ final class AppGroupStoreTests: XCTestCase {
         super.tearDown()
     }
 
-    func test_writeAndRead_limits_roundTrip() throws {
-        let original = InferredLimits(
-            fiveHourTokens: 100_000,
-            sevenDayTokens: 500_000,
-            sevenDaySonnetTokens: 250_000,
-            weeklyMaxObserved: 400_000,
-            fiveHourMaxObserved: 90_000,
-            manualPlanTier: .max5
+    func test_writeAndRead_rate_roundTrip() throws {
+        let original = RateData(
+            session: CategoryData(tokens: 100_000, cost: 1.5, resetsAt: Date(timeIntervalSince1970: 1_000_000)),
+            weekly: CategoryData(tokens: 5_000_000, cost: 42.0, resetsAt: nil),
+            weeklySonnet: CategoryData(tokens: 250_000, cost: 0, resetsAt: nil),
+            fetchedAt: Date(timeIntervalSince1970: 2_000_000),
+            status: .active,
+            source: .jsonl
         )
-        try store.writeLimits(original)
-        let loaded = try store.readLimits()
-        XCTAssertEqual(loaded?.fiveHourTokens, 100_000)
-        XCTAssertEqual(loaded?.manualPlanTier, .max5)
+        try store.writeRate(original)
+        let loaded = try XCTUnwrap(store.readRate())
+        XCTAssertEqual(loaded.session.tokens, 100_000)
+        XCTAssertEqual(loaded.weekly.cost, 42.0, accuracy: 0.001)
+        XCTAssertEqual(loaded.session.resetsAt?.timeIntervalSince1970, 1_000_000)
+        XCTAssertNil(loaded.weekly.resetsAt)
+        XCTAssertEqual(loaded.status, .active)
+        XCTAssertEqual(loaded.source, .jsonl)
     }
 
     func test_read_missingFile_returnsNil() throws {
-        XCTAssertNil(try store.readLimits())
+        XCTAssertNil(try store.readRate())
+        XCTAssertNil(try store.readProjects())
     }
 
     func test_read_corruptFile_throws() throws {
-        let url = tmpDir.appendingPathComponent("limits.json")
+        let url = tmpDir.appendingPathComponent("rate.json")
         try "not json".write(to: url, atomically: true, encoding: .utf8)
-        XCTAssertThrowsError(try store.readLimits())
+        XCTAssertThrowsError(try store.readRate())
     }
 
     func test_offsets_roundTrip() throws {
@@ -48,37 +53,16 @@ final class AppGroupStoreTests: XCTestCase {
         XCTAssertEqual(loaded, ["/a.jsonl": 100, "/b.jsonl": 250])
     }
 
-    func test_mutateLimits_returnsValueAndPersists() throws {
-        let r = try store.mutateLimits { limits -> Int in
-            limits.weeklyMaxObserved = 42
-            return 7
-        }
-        XCTAssertEqual(r, 7)
-        XCTAssertEqual(try store.readLimits()?.weeklyMaxObserved, 42)
+    func test_events_roundTrip() throws {
+        let events = ["/p/s.jsonl": [StoredEvent(t: 12345, tokens: 100, sonnet: false, cost: 0.1, project: "/p")]]
+        try store.writeEvents(events)
+        let loaded = try store.readEvents()
+        XCTAssertEqual(loaded["/p/s.jsonl"]?.first?.tokens, 100)
     }
 
-    // Concurrent mutations of DIFFERENT fields must not clobber each other —
-    // this is the backfill(weeklySamples) vs tick(weeklyMaxObserved) race.
-    func test_mutateLimits_concurrent_doesNotLoseFields() throws {
-        // Seed one field via one path...
-        try store.mutateLimits { $0.weeklySamples = [1, 2, 3] }
-        // ...then a concurrent-style mutation of a different field must preserve it.
-        try store.mutateLimits { $0.weeklyMaxObserved = 999 }
-        let loaded = try XCTUnwrap(try store.readLimits())
-        XCTAssertEqual(loaded.weeklySamples, [1, 2, 3])
-        XCTAssertEqual(loaded.weeklyMaxObserved, 999)
-
-        // Hammer it from many threads; each increments a distinct sample slot's source.
-        let group = DispatchGroup()
-        for i in 0..<50 {
-            group.enter()
-            DispatchQueue.global().async {
-                try? self.store.mutateLimits { $0.weeklyMaxObserved = max($0.weeklyMaxObserved, i) }
-                group.leave()
-            }
-        }
-        group.wait()
-        // weeklySamples seeded earlier must still be intact after 50 concurrent writers.
-        XCTAssertEqual(try store.readLimits()?.weeklySamples, [1, 2, 3])
+    func test_projects_roundTrip() throws {
+        let b = ProjectBreakdown(entries: [.init(displayName: "a", path: "/a", tokens: 5, cost: 0.5)])
+        try store.writeProjects(b)
+        XCTAssertEqual(try store.readProjects()?.entries.first?.tokens, 5)
     }
 }
