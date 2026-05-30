@@ -66,7 +66,13 @@ struct SmallWidgetView: View {
 
     private func usageLine(label: String, data: CategoryData) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(label).font(.system(size: 10)).foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                Text(label).font(.system(size: 10)).foregroundStyle(.secondary)
+                if let u = data.utilization {
+                    Text("\(Int(u * 100))%")
+                        .font(.system(size: 10, weight: .bold)).foregroundStyle(pctColor(u))
+                }
+            }
             Text("\(UsageFormat.tokens(data.tokens)) tok")
                 .font(.system(size: 17, weight: .bold, design: .rounded)).monospacedDigit()
             if data.cost > 0 {
@@ -104,11 +110,19 @@ struct MediumWidgetView: View {
     private func categoryColumn(label: String, data: CategoryData) -> some View {
         VStack(spacing: 3) {
             Text(label).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
-            Text(UsageFormat.tokens(data.tokens))
-                .font(.system(size: 20, weight: .bold, design: .rounded)).monospacedDigit()
-            if data.cost > 0 {
-                Text(UsageFormat.cost(data.cost))
-                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+            if let u = data.utilization {
+                Text("\(Int(u * 100))%")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .monospacedDigit().foregroundStyle(pctColor(u))
+                Text("\(UsageFormat.tokens(data.tokens)) tok")
+                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
+            } else {
+                Text(UsageFormat.tokens(data.tokens))
+                    .font(.system(size: 20, weight: .bold, design: .rounded)).monospacedDigit()
+                if data.cost > 0 {
+                    Text(UsageFormat.cost(data.cost))
+                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                }
             }
             if let reset = data.resetsAt {
                 Text(resetText(reset)).font(.system(size: 8)).foregroundStyle(.tertiary).lineLimit(1)
@@ -150,23 +164,45 @@ struct LargeWidgetView: View {
     }
 
     private func detailRow(label: String, data: CategoryData) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(label).font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
-            Spacer()
-            VStack(alignment: .trailing, spacing: 1) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(UsageFormat.tokens(data.tokens)) tok")
-                        .font(.system(size: 19, weight: .bold, design: .rounded)).monospacedDigit()
-                    if data.cost > 0 {
-                        Text(UsageFormat.cost(data.cost))
-                            .font(.system(size: 13, design: .monospaced)).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label).font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
+                Spacer()
+                if let u = data.utilization {
+                    Text("\(Int(u * 100))%")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .monospacedDigit().foregroundStyle(pctColor(u))
+                }
+            }
+            if let u = data.utilization {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.quaternary).frame(height: 6)
+                        Capsule().fill(pctColor(u)).frame(width: geo.size.width * min(u, 1.0), height: 6)
                     }
                 }
+                .frame(height: 6)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(limitText(data))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded)).monospacedDigit()
+                if data.cost > 0 {
+                    Text(UsageFormat.cost(data.cost))
+                        .font(.system(size: 12, design: .monospaced)).foregroundStyle(.secondary)
+                }
+                Spacer()
                 if let reset = data.resetsAt {
                     Text("Resets \(resetText(reset))").font(.system(size: 10)).foregroundStyle(.tertiary)
                 }
             }
         }
+    }
+
+    private func limitText(_ data: CategoryData) -> String {
+        if let limit = data.limitTokens, limit > 0 {
+            return "\(UsageFormat.tokens(data.tokens)) / \(UsageFormat.tokens(limit)) tok"
+        }
+        return "\(UsageFormat.tokens(data.tokens)) tok"
     }
 }
 
@@ -235,6 +271,12 @@ private func statusColor(_ status: OverallStatus) -> Color {
     case .notLoggedIn: return .orange
     case .error, .unknown, .noLocalData: return .gray
     }
+}
+
+private func pctColor(_ u: Double) -> Color {
+    if u >= 1.0 { return .red }
+    if u >= 0.8 { return .orange }
+    return .green
 }
 
 private func resetText(_ date: Date) -> String {

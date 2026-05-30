@@ -15,9 +15,10 @@ A free, open-source native macOS widget that monitors your Claude Code rate limi
 - **Local-first** — reads `~/.claude/projects/**/*.jsonl` on your Mac; no network round-trip required
 - **Accurate token & cost tracking** — real 5-hour, 7-day, and 7-day Sonnet token counts and USD cost, not estimates
 - **Per-project view** — see which projects burned which share of your 5-hour and 7-day windows
+- **Optional percentage** — enter your plan's token limits in Settings to see a % against them; left blank, the widget shows absolute usage only
 - **Three widget sizes** — Small, Medium, Large (Top-3 project strip on Large)
 - **Opt-in menu bar mode** — keep the app alive in the background
-- **Honest by design** — shows what the logs actually contain; it does not fake a quota percentage (Anthropic's true % needs the official API, a future opt-in)
+- **Honest by design** — counts deduplicated events and matches `ccusage` on cost; it never fakes Anthropic's quota percentage (the official % needs the API, a future opt-in)
 
 ## Install
 
@@ -48,7 +49,8 @@ brew install hulryung/tap/claude-rate-widget
 
 - **Local-first, absolute-centric.** Reads `~/.claude/projects/**/*.jsonl` and reports real token counts and USD cost for the 5-hour, 7-day, and 7-day Sonnet windows.
 - **Per-project attribution.** New Projects tab in the main app; Large widget shows Top 3 projects.
-- **No misleading percentage.** Anthropic's quota % cannot be derived from local token counts, so it is not shown; it returns when official-API support lands (a future opt-in).
+- **Optional percentage.** Enter your plan's 5-hour/weekly token limits in Settings to see a real % against them. Anthropic's *official* quota % can't be derived from local logs, so the widget never fakes one — that returns when official-API support lands (a future opt-in).
+- **Accurate cost.** Cache-aware pricing and event de-duplication; weekly cost matches `ccusage` within a few percent.
 - **Opt-in menu bar mode.** Keep the app alive in the background.
 - **App Sandbox dropped on main app** (widget extension remains sandboxed). Enables reading `~/.claude/`.
 

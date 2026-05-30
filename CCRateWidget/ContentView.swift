@@ -63,11 +63,22 @@ private struct LimitRow: View {
     let cat: CategoryData
     var showCost: Bool = true
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.headline)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label).font(.headline)
+                Spacer()
+                if let u = cat.utilization {
+                    Text("\(Int(u * 100))%")
+                        .font(.headline).monospacedDigit()
+                        .foregroundStyle(pctColor(u))
+                }
+            }
+            if let u = cat.utilization {
+                ProgressView(value: min(u, 1.0)).tint(pctColor(u))
+            }
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("\(UsageFormat.tokens(cat.tokens)) tok")
-                    .font(.title3.weight(.semibold)).monospacedDigit()
+                Text(limitText)
+                    .font(.subheadline.weight(.semibold)).monospacedDigit()
                 if showCost && cat.cost > 0 {
                     Text(UsageFormat.cost(cat.cost))
                         .font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
@@ -79,6 +90,19 @@ private struct LimitRow: View {
                 }
             }
         }
+    }
+
+    private var limitText: String {
+        if let limit = cat.limitTokens, limit > 0 {
+            return "\(UsageFormat.tokens(cat.tokens)) / \(UsageFormat.tokens(limit)) tok"
+        }
+        return "\(UsageFormat.tokens(cat.tokens)) tok"
+    }
+
+    private func pctColor(_ u: Double) -> Color {
+        if u >= 1.0 { return .red }
+        if u >= 0.8 { return .orange }
+        return .green
     }
 }
 

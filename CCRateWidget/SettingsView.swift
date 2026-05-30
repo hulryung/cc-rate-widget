@@ -8,9 +8,29 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Usage") {
-                Text("Claude Rate Widget reports the tokens and cost recorded in your local Claude Code logs. It does not estimate Anthropic's quota percentage — that requires the official API.")
+                Text("Claude Rate Widget reports the tokens and cost recorded in your local Claude Code logs.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
+            Section("Percentage (optional)") {
+                HStack {
+                    Text("5-hour limit")
+                    Spacer()
+                    TextField("none", value: $store.fiveHourLimitMillions, format: .number)
+                        .frame(width: 80).multilineTextAlignment(.trailing)
+                    Text("M tok").foregroundStyle(.secondary)
+                }
+                HStack {
+                    Text("Weekly limit")
+                    Spacer()
+                    TextField("none", value: $store.weeklyLimitMillions, format: .number)
+                        .frame(width: 80).multilineTextAlignment(.trailing)
+                    Text("M tok").foregroundStyle(.secondary)
+                }
+                Text("Enter your plan's token limits (in millions) to show a percentage. Leave at 0 to show absolute usage only. Local logs can't read Anthropic's official quota %, so this is measured against the limit you provide.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            .onChange(of: store.fiveHourLimitMillions) { _, _ in AggregationCoordinator.shared.runOnce() }
+            .onChange(of: store.weeklyLimitMillions) { _, _ in AggregationCoordinator.shared.runOnce() }
             Section("Background") {
                 Toggle("Run in menu bar (recommended for alerts)", isOn: $store.menuBarEnabled)
                     .onChange(of: store.menuBarEnabled) { _, _ in showRelaunchPrompt = true }

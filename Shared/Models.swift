@@ -43,11 +43,27 @@ struct ExtraUsage: Codable {
 // MARK: - Widget Data Model
 
 /// Absolute usage for one rolling window. JSONL gives accurate token counts and cost;
-/// it cannot give Anthropic's quota percentage, so we report what's real.
+/// it cannot give Anthropic's quota percentage. A percentage is shown only when the user
+/// supplies their own token limit (`limitTokens`); otherwise it stays nil and the UI
+/// shows absolute usage alone.
 struct CategoryData {
     let tokens: Int
     let cost: Double         // USD
     let resetsAt: Date?      // when the window's earliest event ages out
+    var limitTokens: Int?    // user-entered cap; nil = no percentage shown
+
+    init(tokens: Int, cost: Double, resetsAt: Date?, limitTokens: Int? = nil) {
+        self.tokens = tokens
+        self.cost = cost
+        self.resetsAt = resetsAt
+        self.limitTokens = limitTokens
+    }
+
+    /// 0…1+ when a limit is set, else nil.
+    var utilization: Double? {
+        guard let limitTokens, limitTokens > 0 else { return nil }
+        return Double(tokens) / Double(limitTokens)
+    }
 }
 
 struct RateData {
@@ -59,8 +75,8 @@ struct RateData {
     let source: RateDataSource
 
     static let placeholder = RateData(
-        session: CategoryData(tokens: 240_000, cost: 1.20, resetsAt: Date().addingTimeInterval(3600)),
-        weekly: CategoryData(tokens: 3_800_000, cost: 24.00, resetsAt: Date().addingTimeInterval(86400)),
+        session: CategoryData(tokens: 240_000, cost: 1.20, resetsAt: Date().addingTimeInterval(3600), limitTokens: 1_000_000),
+        weekly: CategoryData(tokens: 3_800_000, cost: 24.00, resetsAt: Date().addingTimeInterval(86400), limitTokens: 10_000_000),
         weeklySonnet: CategoryData(tokens: 120_000, cost: 0.40, resetsAt: Date().addingTimeInterval(86400)),
         fetchedAt: Date(),
         status: .active,

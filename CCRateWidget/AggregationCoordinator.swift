@@ -67,19 +67,29 @@ final class AggregationCoordinator: ObservableObject {
         let snap = try aggregator.aggregate(now: now)
         try store.writeProjects(snap.projects)
 
-        func cat(tokens: Int, cost: Double, earliest: Date?, window: TimeInterval) -> CategoryData {
+        // Optional user-entered caps (millions of tokens; 0 = unset → no percentage).
+        let suite = UserDefaults(suiteName: AppGroupStore.appGroupID)
+        func cap(_ key: String) -> Int? {
+            let m = suite?.double(forKey: key) ?? 0
+            return m > 0 ? Int(m * 1_000_000) : nil
+        }
+        let fiveHourCap = cap(SettingsStore.fiveHourLimitKey)
+        let weeklyCap   = cap(SettingsStore.weeklyLimitKey)
+
+        func cat(tokens: Int, cost: Double, earliest: Date?, window: TimeInterval, limit: Int?) -> CategoryData {
             CategoryData(tokens: tokens, cost: cost,
-                         resetsAt: earliest.map { $0.addingTimeInterval(window) })
+                         resetsAt: earliest.map { $0.addingTimeInterval(window) },
+                         limitTokens: limit)
         }
 
         let rate = RateData(
             session:      cat(tokens: snap.fiveHourTokens, cost: snap.fiveHourCost,
-                              earliest: snap.earliestInFiveHour, window: 5 * 3600),
+                              earliest: snap.earliestInFiveHour, window: 5 * 3600, limit: fiveHourCap),
             weekly:       cat(tokens: snap.sevenDayTokens, cost: snap.sevenDayCost,
-                              earliest: snap.earliestInSevenDay, window: 7 * 86400),
-            // Sonnet cost isn't tracked per-window yet; tokens are accurate.
+                              earliest: snap.earliestInSevenDay, window: 7 * 86400, limit: weeklyCap),
+            // Sonnet cost isn't tracked per-window yet; tokens are accurate. No separate cap.
             weeklySonnet: cat(tokens: snap.sevenDaySonnetTokens, cost: 0,
-                              earliest: snap.earliestInSevenDay, window: 7 * 86400),
+                              earliest: snap.earliestInSevenDay, window: 7 * 86400, limit: nil),
             fetchedAt: now,
             status: .active,
             source: .jsonl

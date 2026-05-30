@@ -75,15 +75,32 @@ private struct PersistedRate: Codable {
     let status: String
     let source: String
 
-    struct Cat: Codable { let tokens: Int; let cost: Double; let resetsAt: Double? }
+    struct Cat: Codable {
+        let tokens: Int
+        let cost: Double
+        let resetsAt: Double?
+        var limitTokens: Int?
+
+        init(_ c: CategoryData) {
+            self.tokens = c.tokens; self.cost = c.cost
+            self.resetsAt = c.resetsAt?.timeIntervalSince1970
+            self.limitTokens = c.limitTokens
+        }
+
+        private enum CodingKeys: String, CodingKey { case tokens, cost, resetsAt, limitTokens }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.tokens = try c.decode(Int.self, forKey: .tokens)
+            self.cost = try c.decode(Double.self, forKey: .cost)
+            self.resetsAt = try c.decodeIfPresent(Double.self, forKey: .resetsAt)
+            self.limitTokens = try c.decodeIfPresent(Int.self, forKey: .limitTokens)
+        }
+    }
 
     init(from r: RateData) {
-        self.session = Cat(tokens: r.session.tokens, cost: r.session.cost,
-                           resetsAt: r.session.resetsAt?.timeIntervalSince1970)
-        self.weekly = Cat(tokens: r.weekly.tokens, cost: r.weekly.cost,
-                          resetsAt: r.weekly.resetsAt?.timeIntervalSince1970)
-        self.weeklySonnet = Cat(tokens: r.weeklySonnet.tokens, cost: r.weeklySonnet.cost,
-                                resetsAt: r.weeklySonnet.resetsAt?.timeIntervalSince1970)
+        self.session = Cat(r.session)
+        self.weekly = Cat(r.weekly)
+        self.weeklySonnet = Cat(r.weeklySonnet)
         self.fetchedAt = r.fetchedAt.timeIntervalSince1970
         self.status = r.status.rawValue
         self.source = r.source.rawValue
@@ -92,7 +109,8 @@ private struct PersistedRate: Codable {
     func toRateData() -> RateData {
         func cat(_ c: Cat) -> CategoryData {
             CategoryData(tokens: c.tokens, cost: c.cost,
-                         resetsAt: c.resetsAt.map(Date.init(timeIntervalSince1970:)))
+                         resetsAt: c.resetsAt.map(Date.init(timeIntervalSince1970:)),
+                         limitTokens: c.limitTokens)
         }
         return RateData(
             session: cat(session),
