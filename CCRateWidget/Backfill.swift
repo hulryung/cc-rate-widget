@@ -17,9 +17,8 @@ enum Backfill {
         Task.detached(priority: .background) {
             do {
                 let samples = try buildWeeklySamples(rootDir: rootDir)
-                var limits = (try? store.readLimits()) ?? InferredLimits()
-                limits.weeklySamples = samples
-                try store.writeLimits(limits)
+                // Merge under the limits lock so a concurrent tick can't drop these samples.
+                try store.mutateLimits { $0.weeklySamples = samples }
                 await MainActor.run { AggregationCoordinator.shared.runOnce() }
             } catch {
                 NSLog("[Backfill] failed: \(error)")

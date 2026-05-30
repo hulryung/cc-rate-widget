@@ -50,15 +50,14 @@ struct SettingsView: View {
     }
 
     private func persistManualTier(_ raw: String) {
-        var limits = (try? AppGroupStore.shared.readLimits())
-            ?? InferredLimits()
-        switch raw {
-        case "pro":   limits.manualPlanTier = .pro
-        case "max5":  limits.manualPlanTier = .max5
-        case "max20": limits.manualPlanTier = .max20
-        default:      limits.manualPlanTier = nil
+        try? AppGroupStore.shared.mutateLimits { limits in
+            switch raw {
+            case "pro":   limits.manualPlanTier = .pro
+            case "max5":  limits.manualPlanTier = .max5
+            case "max20": limits.manualPlanTier = .max20
+            default:      limits.manualPlanTier = nil
+            }
         }
-        try? AppGroupStore.shared.writeLimits(limits)
         AggregationCoordinator.shared.runOnce()
     }
 }

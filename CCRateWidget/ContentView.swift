@@ -26,7 +26,8 @@ struct ContentView: View {
         }
         .frame(minWidth: 520, minHeight: 420)
         .task {
-            coordinator.start()
+            // AppDelegate owns coordinator lifecycle (start on launch). Here we only
+            // surface the latest snapshot/projects when the window appears.
             refreshProjects()
         }
         .onReceive(coordinator.$lastSnapshot) { _ in refreshProjects() }

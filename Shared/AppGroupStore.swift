@@ -10,6 +10,7 @@ final class AppGroupStore {
         return e
     }()
     private let decoder = JSONDecoder()
+    private let limitsLock = NSLock()
 
     static var shared: AppGroupStore = {
         guard let url = FileManager.default.containerURL(
@@ -29,6 +30,7 @@ final class AppGroupStore {
     private var projectsURL: URL { containerURL.appendingPathComponent("projects.json") }
     private var limitsURL:   URL { containerURL.appendingPathComponent("limits.json") }
     private var offsetsURL:  URL { containerURL.appendingPathComponent("offsets.json") }
+    private var eventsURL:   URL { containerURL.appendingPathComponent("events.json") }
     private var alertStateURL: URL { containerURL.appendingPathComponent("alert_state.json") }
 
     fileprivate func readAlertStateRaw() throws -> AlertState? {
@@ -66,8 +68,29 @@ final class AppGroupStore {
     func readLimits()   throws -> InferredLimits?   { try read(limitsURL, as: InferredLimits.self) }
     func writeLimits(_ value: InferredLimits) throws { try atomicWrite(value, to: limitsURL) }
 
+    /// Atomic read-modify-write of limits.json under a process-wide lock. All writers
+    /// (coordinator tick, backfill, manual plan-tier change) must go through this so
+    /// concurrent updates can't clobber each other's fields (e.g. backfill's
+    /// weeklySamples vs tick's ratcheted maxObserved). Only the main app writes limits;
+    /// the widget extension is read-only, so a single in-process lock suffices.
+    @discardableResult
+    func mutateLimits<R>(_ body: (inout InferredLimits) -> R) throws -> R {
+        limitsLock.lock()
+        defer { limitsLock.unlock() }
+        var limits = (try? read(limitsURL, as: InferredLimits.self)) ?? InferredLimits()
+        let result = body(&limits)
+        try atomicWrite(limits, to: limitsURL)
+        return result
+    }
+
     func readOffsets()  throws -> [String: UInt64]  { (try read(offsetsURL, as: [String: UInt64].self)) ?? [:] }
     func writeOffsets(_ value: [String: UInt64]) throws { try atomicWrite(value, to: offsetsURL) }
+
+    /// Rolling per-file event store: file path → in-window events. Keyed by file so
+    /// offset resets (file rotation) and file deletions can be reconciled without
+    /// double-counting. Aggregator ages out events older than the 7-day window.
+    func readEvents()  throws -> [String: [StoredEvent]]  { (try read(eventsURL, as: [String: [StoredEvent]].self)) ?? [:] }
+    func writeEvents(_ value: [String: [StoredEvent]]) throws { try atomicWrite(value, to: eventsURL) }
 }
 
 // MARK: - Alert State

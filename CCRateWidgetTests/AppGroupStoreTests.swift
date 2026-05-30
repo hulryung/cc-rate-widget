@@ -47,4 +47,38 @@ final class AppGroupStoreTests: XCTestCase {
         let loaded = try store.readOffsets()
         XCTAssertEqual(loaded, ["/a.jsonl": 100, "/b.jsonl": 250])
     }
+
+    func test_mutateLimits_returnsValueAndPersists() throws {
+        let r = try store.mutateLimits { limits -> Int in
+            limits.weeklyMaxObserved = 42
+            return 7
+        }
+        XCTAssertEqual(r, 7)
+        XCTAssertEqual(try store.readLimits()?.weeklyMaxObserved, 42)
+    }
+
+    // Concurrent mutations of DIFFERENT fields must not clobber each other —
+    // this is the backfill(weeklySamples) vs tick(weeklyMaxObserved) race.
+    func test_mutateLimits_concurrent_doesNotLoseFields() throws {
+        // Seed one field via one path...
+        try store.mutateLimits { $0.weeklySamples = [1, 2, 3] }
+        // ...then a concurrent-style mutation of a different field must preserve it.
+        try store.mutateLimits { $0.weeklyMaxObserved = 999 }
+        let loaded = try XCTUnwrap(try store.readLimits())
+        XCTAssertEqual(loaded.weeklySamples, [1, 2, 3])
+        XCTAssertEqual(loaded.weeklyMaxObserved, 999)
+
+        // Hammer it from many threads; each increments a distinct sample slot's source.
+        let group = DispatchGroup()
+        for i in 0..<50 {
+            group.enter()
+            DispatchQueue.global().async {
+                try? self.store.mutateLimits { $0.weeklyMaxObserved = max($0.weeklyMaxObserved, i) }
+                group.leave()
+            }
+        }
+        group.wait()
+        // weeklySamples seeded earlier must still be intact after 50 concurrent writers.
+        XCTAssertEqual(try store.readLimits()?.weeklySamples, [1, 2, 3])
+    }
 }

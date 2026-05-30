@@ -19,8 +19,8 @@ final class AggregationCoordinator: ObservableObject {
     private init() {}
 
     func start() {
+        guard timer == nil else { return }   // idempotent: ignore duplicate start() calls
         runOnce()
-        timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: intervalSeconds, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.runOnce() }
         }
@@ -71,15 +71,16 @@ final class AggregationCoordinator: ObservableObject {
 
         let aggregator = JSONLAggregator(rootDir: root, store: store)
         let snap = try aggregator.aggregate(now: Date())
-        var limits = (try store.readLimits()) ?? InferredLimits(weeklyMaxObserved: 0,
-                                                                fiveHourMaxObserved: 0)
-        let inferred = LimitInferrer.infer(
-            currentSnapshot: snap,
-            weeklySamples: limits.weeklySamples,
-            fiveHourSamples: limits.fiveHourSamples,
-            limits: &limits
-        )
-        try store.writeLimits(limits)
+        // Ratchet + infer under the limits lock so a concurrent backfill writing
+        // weeklySamples can't be clobbered (and vice versa).
+        let inferred = try store.mutateLimits { limits in
+            LimitInferrer.infer(
+                currentSnapshot: snap,
+                weeklySamples: limits.weeklySamples,
+                fiveHourSamples: limits.fiveHourSamples,
+                limits: &limits
+            )
+        }
         try store.writeProjects(snap.projects)
 
         let now = Date()
