@@ -153,6 +153,34 @@ final class JSONLAggregatorTests: XCTestCase {
         XCTAssertEqual(try aggregator.aggregate(now: now).fiveHourTokens, 0)
     }
 
+    private func assistantLineWithID(ts: String, cwd: String, model: String, inTok: Int, msgID: String, reqID: String) -> String {
+        """
+        {"type":"assistant","timestamp":"\(ts)","sessionId":"s","requestId":"\(reqID)","cwd":"\(cwd)","message":{"id":"\(msgID)","model":"\(model)","usage":{"input_tokens":\(inTok),"output_tokens":0}}}
+        """
+    }
+
+    // REGRESSION: Claude Code logs the same assistant turn in multiple files; counting
+    // every line double-counts. Same (messageId, requestId) across two files = counted once.
+    func test_dedupe_sameMessageAcrossFiles_countedOnce() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60))
+        let line = assistantLineWithID(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 100, msgID: "msg_abc", reqID: "req_1")
+        writeFile("a/session.jsonl", line + "\n")
+        writeFile("b/summary.jsonl", line + "\n")   // duplicate of the same turn
+        let snap = try aggregator.aggregate(now: now)
+        XCTAssertEqual(snap.fiveHourTokens, 100, "duplicate of same message must be counted once")
+        XCTAssertEqual(snap.projects.entries.reduce(0) { $0 + $1.tokens }, 100)
+    }
+
+    func test_dedupe_differentMessages_bothCounted() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60))
+        writeFile("p/s.jsonl",
+            assistantLineWithID(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 100, msgID: "m1", reqID: "r1") + "\n" +
+            assistantLineWithID(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 50,  msgID: "m2", reqID: "r2") + "\n")
+        XCTAssertEqual(try aggregator.aggregate(now: now).fiveHourTokens, 150)
+    }
+
     // Pure window math, isolated from the filesystem.
     func test_computeSnapshot_windows() {
         let now = Date()

@@ -5,6 +5,11 @@ struct JSONLEvent {
     let cwd: String
     let model: String
     let usage: TokenUsage
+    /// Stable identity for de-duplication. Claude Code logs the same assistant turn in
+    /// multiple files (session, sidechain, summary); counting every line double-counts.
+    /// Matches ccusage's `messageId:requestId` key. nil when no message id is present
+    /// (such events can't be deduped and are always counted).
+    let dedupeKey: String?
 
     static func decode(line: String) -> JSONLEvent? {
         guard let data = line.data(using: .utf8) else { return nil }
@@ -22,7 +27,10 @@ struct JSONLEvent {
             cacheWrite: (usage["cache_creation_input_tokens"] as? Int) ?? 0,
             cacheRead:  (usage["cache_read_input_tokens"] as? Int) ?? 0
         )
-        return JSONLEvent(timestamp: date, cwd: cwd, model: model, usage: u)
+        let messageID = msg["id"] as? String
+        let requestID = (raw["requestId"] as? String) ?? (raw["request_id"] as? String)
+        let key = messageID.map { "\($0):\(requestID ?? "")" }
+        return JSONLEvent(timestamp: date, cwd: cwd, model: model, usage: u, dedupeKey: key)
     }
 
     private static let isoWithFractions: ISO8601DateFormatter = {

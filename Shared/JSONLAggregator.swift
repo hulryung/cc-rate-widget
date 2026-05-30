@@ -8,9 +8,25 @@ struct StoredEvent: Codable, Equatable {
     let sonnet: Bool     // model matched /sonnet/i
     let cost: Double     // USD
     let project: String  // cwd
+    let id: String?      // dedupe key (messageId:requestId); nil = always counted
+
+    init(t: Double, tokens: Int, sonnet: Bool, cost: Double, project: String, id: String? = nil) {
+        self.t = t; self.tokens = tokens; self.sonnet = sonnet
+        self.cost = cost; self.project = project; self.id = id
+    }
 
     enum CodingKeys: String, CodingKey {
-        case t, tokens = "k", sonnet = "s", cost = "c", project = "p"
+        case t, tokens = "k", sonnet = "s", cost = "c", project = "p", id = "i"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.t = try c.decode(Double.self, forKey: .t)
+        self.tokens = try c.decode(Int.self, forKey: .tokens)
+        self.sonnet = try c.decode(Bool.self, forKey: .sonnet)
+        self.cost = try c.decode(Double.self, forKey: .cost)
+        self.project = try c.decode(String.self, forKey: .project)
+        self.id = try c.decodeIfPresent(String.self, forKey: .id)
     }
 }
 
@@ -86,7 +102,8 @@ final class JSONLAggregator {
                     tokens: evt.usage.utilizationTokens,
                     sonnet: evt.model.lowercased().contains("sonnet"),
                     cost: Pricing.cost(model: evt.model, usage: evt.usage),
-                    project: evt.cwd
+                    project: evt.cwd,
+                    id: evt.dedupeKey
                 ))
             }
             events[path] = bucket
@@ -118,10 +135,15 @@ final class JSONLAggregator {
         var halfHourTokens = 0
         var perProjectTokens: [String: Int] = [:]
         var perProjectCost:   [String: Double] = [:]
+        var seen = Set<String>()   // dedupe: same event logged in multiple files
 
         for e in events {
             let age = nowT - e.t
             if age < 0 || age > sevenDays { continue }
+            if let id = e.id {
+                if seen.contains(id) { continue }
+                seen.insert(id)
+            }
 
             if age <= fiveHours {
                 fiveHourTokens += e.tokens

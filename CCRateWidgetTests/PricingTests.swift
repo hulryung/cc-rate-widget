@@ -1,11 +1,17 @@
 import XCTest
 
 final class PricingTests: XCTestCase {
-    func test_opus47_cost_perMillion() {
+    func test_opus_cost_perMillion() {
         let usage = TokenUsage(input: 1_000_000, output: 1_000_000, cacheWrite: 0, cacheRead: 0)
-        let cost = Pricing.cost(model: "claude-opus-4-7", usage: usage)
-        // 15 + 75 = 90
-        XCTAssertEqual(cost, 90.0, accuracy: 0.0001)
+        // Opus 4.5+ pricing: input $5 + output $25 = $30 per (1M in + 1M out).
+        XCTAssertEqual(Pricing.cost(model: "claude-opus-4-7", usage: usage), 30.0, accuracy: 0.0001)
+        XCTAssertEqual(Pricing.cost(model: "claude-opus-4-8", usage: usage), 30.0, accuracy: 0.0001)
+    }
+
+    func test_opus_cacheRead_isCheap() {
+        let usage = TokenUsage(input: 0, output: 0, cacheWrite: 0, cacheRead: 1_000_000)
+        // cache read $0.50/M — verified against ccusage.
+        XCTAssertEqual(Pricing.cost(model: "claude-opus-4-8", usage: usage), 0.50, accuracy: 0.0001)
     }
 
     func test_sonnet46_cost_includesCacheWrite() {
