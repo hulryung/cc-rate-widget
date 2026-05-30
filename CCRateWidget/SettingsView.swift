@@ -7,20 +7,30 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Plan tier") {
-                Picker("Plan", selection: $store.manualPlanTier) {
-                    Text("Auto (P90)").tag("auto")
-                    Text("Pro").tag("pro")
-                    Text("Max5").tag("max5")
-                    Text("Max20").tag("max20")
-                }
-                .pickerStyle(.menu)
-                .onChange(of: store.manualPlanTier) { _, new in
-                    persistManualTier(new)
-                }
-                Text("Choose the tier that matches your subscription, or leave on Auto to let the widget estimate from your usage history.")
+            Section("Usage") {
+                Text("Claude Rate Widget reports the tokens and cost recorded in your local Claude Code logs.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
+            Section("Percentage (optional)") {
+                HStack {
+                    Text("5-hour limit")
+                    Spacer()
+                    TextField("none", value: $store.fiveHourLimitMillions, format: .number)
+                        .frame(width: 80).multilineTextAlignment(.trailing)
+                    Text("M tok").foregroundStyle(.secondary)
+                }
+                HStack {
+                    Text("Weekly limit")
+                    Spacer()
+                    TextField("none", value: $store.weeklyLimitMillions, format: .number)
+                        .frame(width: 80).multilineTextAlignment(.trailing)
+                    Text("M tok").foregroundStyle(.secondary)
+                }
+                Text("Enter your plan's token limits (in millions) to show a percentage. Leave at 0 to show absolute usage only. Local logs can't read Anthropic's official quota %, so this is measured against the limit you provide.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            .onChange(of: store.fiveHourLimitMillions) { _, _ in AggregationCoordinator.shared.runOnce() }
+            .onChange(of: store.weeklyLimitMillions) { _, _ in AggregationCoordinator.shared.runOnce() }
             Section("Background") {
                 Toggle("Run in menu bar (recommended for alerts)", isOn: $store.menuBarEnabled)
                     .onChange(of: store.menuBarEnabled) { _, _ in showRelaunchPrompt = true }
@@ -47,19 +57,6 @@ struct SettingsView: View {
         } message: {
             Text("Menu bar mode setting saved. The Dock icon will remain visible — relaunching is only needed to attach (or detach) the menu-bar item this session.")
         }
-    }
-
-    private func persistManualTier(_ raw: String) {
-        var limits = (try? AppGroupStore.shared.readLimits())
-            ?? InferredLimits()
-        switch raw {
-        case "pro":   limits.manualPlanTier = .pro
-        case "max5":  limits.manualPlanTier = .max5
-        case "max20": limits.manualPlanTier = .max20
-        default:      limits.manualPlanTier = nil
-        }
-        try? AppGroupStore.shared.writeLimits(limits)
-        AggregationCoordinator.shared.runOnce()
     }
 }
 

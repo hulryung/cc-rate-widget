@@ -19,8 +19,8 @@ final class AggregationCoordinator: ObservableObject {
     private init() {}
 
     func start() {
+        guard timer == nil else { return }   // idempotent: ignore duplicate start() calls
         runOnce()
-        timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: intervalSeconds, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.runOnce() }
         }
@@ -53,115 +53,49 @@ final class AggregationCoordinator: ObservableObject {
         let root  = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/projects", isDirectory: true)
 
+        let now = Date()
+
         guard FileManager.default.fileExists(atPath: root.path) else {
-            let r = RateData(
-                session:      CategoryData(utilization: 0, resetsAt: nil),
-                weekly:       CategoryData(utilization: 0, resetsAt: nil),
-                weeklySonnet: CategoryData(utilization: 0, resetsAt: nil),
-                overage:      OverageData(isEnabled: false, utilization: 0, spent: 0, limit: 0),
-                fetchedAt: Date(),
-                status: .noLocalData,
-                source: .noLocalData
-            )
+            let empty = CategoryData(tokens: 0, cost: 0, resetsAt: nil)
+            let r = RateData(session: empty, weekly: empty, weeklySonnet: empty,
+                             fetchedAt: now, status: .noLocalData, source: .noLocalData)
             try store.writeRate(r)
             return r
         }
 
-        Backfill.runIfNeeded(rootDir: root, store: store)
-
         let aggregator = JSONLAggregator(rootDir: root, store: store)
-        let snap = try aggregator.aggregate(now: Date())
-        var limits = (try store.readLimits()) ?? InferredLimits(weeklyMaxObserved: 0,
-                                                                fiveHourMaxObserved: 0)
-        let inferred = LimitInferrer.infer(
-            currentSnapshot: snap,
-            weeklySamples: limits.weeklySamples,
-            fiveHourSamples: limits.fiveHourSamples,
-            limits: &limits
-        )
-        try store.writeLimits(limits)
+        let snap = try aggregator.aggregate(now: now)
         try store.writeProjects(snap.projects)
 
-        let now = Date()
-        func cat(tokens: Int, limit: Int?, earliest: Date?, window: TimeInterval) -> CategoryData {
-            let utilization: Double
-            if let limit, limit > 0 {
-                utilization = Double(tokens) / Double(limit)
-            } else {
-                utilization = 0
-            }
-            let resetsAt = earliest.map { $0.addingTimeInterval(window) }
-            return CategoryData(utilization: utilization, resetsAt: resetsAt)
+        // Optional user-entered caps (millions of tokens; 0 = unset → no percentage).
+        let suite = UserDefaults(suiteName: AppGroupStore.appGroupID)
+        func cap(_ key: String) -> Int? {
+            let m = suite?.double(forKey: key) ?? 0
+            return m > 0 ? Int(m * 1_000_000) : nil
+        }
+        let fiveHourCap = cap(SettingsStore.fiveHourLimitKey)
+        let weeklyCap   = cap(SettingsStore.weeklyLimitKey)
+
+        func cat(tokens: Int, cost: Double, earliest: Date?, window: TimeInterval, limit: Int?) -> CategoryData {
+            CategoryData(tokens: tokens, cost: cost,
+                         resetsAt: earliest.map { $0.addingTimeInterval(window) },
+                         limitTokens: limit)
         }
 
-        let session  = cat(tokens: snap.fiveHourTokens, limit: inferred.fiveHourTokens,
-                           earliest: snap.earliestInFiveHour, window: 5 * 3600)
-        let weekly   = cat(tokens: snap.sevenDayTokens, limit: inferred.sevenDayTokens,
-                           earliest: snap.earliestInSevenDay, window: 7 * 86400)
-        let sonnet   = cat(tokens: snap.sevenDaySonnetTokens, limit: inferred.sevenDaySonnetTokens,
-                           earliest: snap.earliestInSevenDay, window: 7 * 86400)
-
-        let maxUtil = max(session.utilization, weekly.utilization)
-        let status: OverallStatus = maxUtil >= 1.0 ? .rateLimited
-                                    : maxUtil >= 0.80 ? .warning
-                                    : .active
-
-        let source: RateDataSource = (inferred.sevenDayTokens == nil) ? .partial : .jsonl
         let rate = RateData(
-            session: session,
-            weekly: weekly,
-            weeklySonnet: sonnet,
-            overage: OverageData(isEnabled: false, utilization: 0, spent: 0, limit: 0),
+            session:      cat(tokens: snap.fiveHourTokens, cost: snap.fiveHourCost,
+                              earliest: snap.earliestInFiveHour, window: 5 * 3600, limit: fiveHourCap),
+            weekly:       cat(tokens: snap.sevenDayTokens, cost: snap.sevenDayCost,
+                              earliest: snap.earliestInSevenDay, window: 7 * 86400, limit: weeklyCap),
+            // Sonnet cost isn't tracked per-window yet; tokens are accurate. No separate cap.
+            weeklySonnet: cat(tokens: snap.sevenDaySonnetTokens, cost: 0,
+                              earliest: snap.earliestInSevenDay, window: 7 * 86400, limit: nil),
             fetchedAt: now,
-            status: status,
-            source: source
+            status: .active,
+            source: .jsonl
         )
 
         try store.writeRate(rate)
-
-        // Alert pass.
-        let storedAlert = (try? store.readAlertState()) ?? AlertState()
-
-        let prevState = AlertEngine.State(
-            utilization: 0,
-            resetsAt: storedAlert.windowResetsAt.map(Date.init(timeIntervalSince1970:)),
-            lastThresholdFired: storedAlert.lastThresholdFired,
-            forecastFiredAt: storedAlert.forecastFiredAt.map(Date.init(timeIntervalSince1970:)),
-            burnTokensPerSec: 0,
-            inferredLimitTokens: inferred.sevenDayTokens ?? 0,
-            currentTokens: snap.sevenDayTokens
-        )
-        let newState = AlertEngine.State(
-            utilization: maxUtil,
-            resetsAt: rate.weekly.resetsAt,
-            lastThresholdFired: storedAlert.lastThresholdFired,
-            forecastFiredAt: storedAlert.forecastFiredAt.map(Date.init(timeIntervalSince1970:)),
-            burnTokensPerSec: snap.lastHalfHourTokensPerSecond,
-            inferredLimitTokens: inferred.sevenDayTokens ?? 0,
-            currentTokens: snap.sevenDayTokens
-        )
-        let alerts = AlertEngine.evaluate(prev: prevState, new: newState, now: now)
-        #if canImport(UserNotifications)
-        AlertEngine.deliver(alerts)
-        #endif
-
-        // Persist updated fire-state.
-        var nextAlert = storedAlert
-        if rate.weekly.resetsAt?.timeIntervalSince1970 != storedAlert.windowResetsAt {
-            nextAlert.lastThresholdFired = nil
-            nextAlert.forecastFiredAt = nil
-            nextAlert.windowResetsAt = rate.weekly.resetsAt?.timeIntervalSince1970
-        }
-        for alert in alerts {
-            switch alert.kind {
-            case .threshold(let t):
-                nextAlert.lastThresholdFired = max(nextAlert.lastThresholdFired ?? 0, t)
-            case .forecast:
-                nextAlert.forecastFiredAt = now.timeIntervalSince1970
-            }
-        }
-        try? store.writeAlertState(nextAlert)
-
         return rate
     }
 }

@@ -8,41 +8,37 @@ struct RateWidgetEntryView: View {
     var entry: RateEntry
 
     var body: some View {
-        if entry.data.status == .notLoggedIn {
-            LoginPromptView(family: family)
+        if entry.data.status == .noLocalData {
+            SetupPromptView(family: family)
         } else {
             switch family {
-            case .systemSmall:
-                SmallWidgetView(entry: entry)
-            case .systemMedium:
-                MediumWidgetView(entry: entry)
-            case .systemLarge:
-                LargeWidgetView(entry: entry)
-            default:
-                MediumWidgetView(entry: entry)
+            case .systemSmall:  SmallWidgetView(entry: entry)
+            case .systemMedium: MediumWidgetView(entry: entry)
+            case .systemLarge:  LargeWidgetView(entry: entry)
+            default:            MediumWidgetView(entry: entry)
             }
         }
     }
 }
 
-// MARK: - Login Prompt
+// MARK: - Setup Prompt
 
-struct LoginPromptView: View {
+struct SetupPromptView: View {
     let family: WidgetFamily
 
     var body: some View {
         VStack(spacing: family == .systemSmall ? 6 : 10) {
-            Image(systemName: "person.crop.circle.badge.questionmark")
+            Image(systemName: "folder.badge.questionmark")
                 .font(family == .systemSmall ? .title3 : .largeTitle)
                 .foregroundStyle(.orange)
-            Text("Login Required")
+            Text("Setup Required")
                 .font(family == .systemSmall ? .caption.bold() : .headline)
-            Text("Tap to open app and log in")
+            Text("Open the app to grant access to ~/.claude")
                 .font(family == .systemSmall ? .system(size: 9) : .caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
-        .widgetURL(URL(string: "clauderatewidget://login"))
+        .widgetURL(URL(string: "clauderatewidget://setup"))
     }
 }
 
@@ -54,53 +50,35 @@ struct SmallWidgetView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 5) {
-                Circle()
-                    .fill(statusColor(entry.data.status))
-                    .frame(width: 7, height: 7)
-                Text("Claude")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.secondary)
+                Circle().fill(statusColor(entry.data.status)).frame(width: 7, height: 7)
+                Text("Claude").font(.system(size: 11, weight: .bold)).foregroundStyle(.secondary)
             }
-
-            Spacer(minLength: 4)
-
-            miniBar(label: "Session", value: entry.data.session.utilization)
-            Spacer(minLength: 3)
-            miniBar(label: "Weekly", value: entry.data.weekly.utilization)
-
-            Spacer(minLength: 4)
-
-            Text(entry.data.status.label)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(statusColor(entry.data.status))
+            Spacer(minLength: 6)
+            usageLine(label: "5h", data: entry.data.session)
+            Spacer(minLength: 6)
+            usageLine(label: "7d", data: entry.data.weekly)
+            Spacer(minLength: 0)
         }
         .overlay(alignment: .topTrailing) {
             SourceBadge(source: entry.data.source).padding(6)
         }
     }
 
-    private func miniBar(label: String, value: Double) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(label)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("\(Int(value * 100))%")
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.primary)
-            }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(.quaternary)
-                        .frame(height: 3)
-                    Capsule()
-                        .fill(barColor(value))
-                        .frame(width: geo.size.width * min(value, 1.0), height: 3)
+    private func usageLine(label: String, data: CategoryData) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 4) {
+                Text(label).font(.system(size: 10)).foregroundStyle(.secondary)
+                if let u = data.utilization {
+                    Text("\(Int(u * 100))%")
+                        .font(.system(size: 10, weight: .bold)).foregroundStyle(pctColor(u))
                 }
             }
-            .frame(height: 3)
+            Text("\(UsageFormat.tokens(data.tokens)) tok")
+                .font(.system(size: 17, weight: .bold, design: .rounded)).monospacedDigit()
+            if data.cost > 0 {
+                Text(UsageFormat.cost(data.cost))
+                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
+            }
         }
     }
 }
@@ -111,27 +89,16 @@ struct MediumWidgetView: View {
     let entry: RateEntry
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             HStack(spacing: 6) {
-                Circle()
-                    .fill(statusColor(entry.data.status))
-                    .frame(width: 8, height: 8)
-                Text("Claude Rate Monitor")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.secondary)
+                Circle().fill(statusColor(entry.data.status)).frame(width: 8, height: 8)
+                Text("Claude Rate Monitor").font(.caption2.bold()).foregroundStyle(.secondary)
                 Spacer()
-                Text(entry.data.status.label)
-                    .font(.caption2.bold())
-                    .foregroundStyle(statusColor(entry.data.status))
             }
-
             HStack(spacing: 12) {
-                categoryColumn(label: "Session", data: entry.data.session)
-                categoryColumn(label: "Weekly", data: entry.data.weekly)
-                categoryColumn(label: "Sonnet", data: entry.data.weeklySonnet)
-                if entry.data.overage.isEnabled {
-                    overageColumn(entry.data.overage)
-                }
+                categoryColumn(label: "Session 5h", data: entry.data.session)
+                categoryColumn(label: "Weekly 7d", data: entry.data.weekly)
+                categoryColumn(label: "Sonnet 7d", data: entry.data.weeklySonnet)
             }
         }
         .padding(2)
@@ -141,50 +108,25 @@ struct MediumWidgetView: View {
     }
 
     private func categoryColumn(label: String, data: CategoryData) -> some View {
-        VStack(spacing: 4) {
-            Text(label)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-            Text("\(Int(data.utilization * 100))%")
-                .font(.system(size: 18, weight: .bold, design: .monospaced))
-                .foregroundStyle(barColor(data.utilization))
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.quaternary).frame(height: 4)
-                    Capsule().fill(barColor(data.utilization))
-                        .frame(width: geo.size.width * min(data.utilization, 1.0), height: 4)
+        VStack(spacing: 3) {
+            Text(label).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
+            if let u = data.utilization {
+                Text("\(Int(u * 100))%")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .monospacedDigit().foregroundStyle(pctColor(u))
+                Text("\(UsageFormat.tokens(data.tokens)) tok")
+                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
+            } else {
+                Text(UsageFormat.tokens(data.tokens))
+                    .font(.system(size: 20, weight: .bold, design: .rounded)).monospacedDigit()
+                if data.cost > 0 {
+                    Text(UsageFormat.cost(data.cost))
+                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
                 }
             }
-            .frame(height: 4)
             if let reset = data.resetsAt {
-                Text(resetText(reset))
-                    .font(.system(size: 8))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                Text(resetText(reset)).font(.system(size: 8)).foregroundStyle(.tertiary).lineLimit(1)
             }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func overageColumn(_ data: OverageData) -> some View {
-        VStack(spacing: 4) {
-            Text("Overage")
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-            Text("$\(String(format: "%.0f", data.spent))")
-                .font(.system(size: 18, weight: .bold, design: .monospaced))
-                .foregroundStyle(barColor(data.utilization))
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.quaternary).frame(height: 4)
-                    Capsule().fill(barColor(data.utilization))
-                        .frame(width: geo.size.width * min(data.utilization, 1.0), height: 4)
-                }
-            }
-            .frame(height: 4)
-            Text("of $\(String(format: "%.0f", data.limit))")
-                .font(.system(size: 8))
-                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -196,43 +138,24 @@ struct LargeWidgetView: View {
     let entry: RateEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Circle()
-                    .fill(statusColor(entry.data.status))
-                    .frame(width: 10, height: 10)
-                Text("Claude Rate Monitor")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.secondary)
+                Circle().fill(statusColor(entry.data.status)).frame(width: 10, height: 10)
+                Text("Claude Rate Monitor").font(.system(size: 15, weight: .bold)).foregroundStyle(.secondary)
                 Spacer()
-                Text(entry.data.status.label)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(statusColor(entry.data.status))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .background(statusColor(entry.data.status).opacity(0.15), in: Capsule())
             }
 
             detailRow(label: "Session (5h)", data: entry.data.session)
-            detailRow(label: "Weekly", data: entry.data.weekly)
+            detailRow(label: "Weekly (7d)", data: entry.data.weekly)
             detailRow(label: "Weekly Sonnet", data: entry.data.weeklySonnet)
 
-            if entry.data.overage.isEnabled {
-                overageDetailRow(entry.data.overage)
-            }
-
             Divider()
-            if let projects = entry.projects {
-                LargeProjectStrip(projects: projects)
-            } else {
-                LargeProjectStrip(projects: ProjectBreakdown(entries: []))
-            }
+            LargeProjectStrip(projects: entry.projects ?? ProjectBreakdown(entries: []))
 
             Spacer(minLength: 0)
 
             Text("Updated \(entry.date.formatted(date: .omitted, time: .shortened))")
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11)).foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .overlay(alignment: .topTrailing) {
@@ -241,52 +164,45 @@ struct LargeWidgetView: View {
     }
 
     private func detailRow(label: String, data: CategoryData) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Text(label)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label).font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
                 Spacer()
-                Text("\(Int(data.utilization * 100))%")
-                    .font(.system(size: 20, weight: .bold, design: .monospaced))
-                    .foregroundStyle(barColor(data.utilization))
-            }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.quaternary).frame(height: 8)
-                    Capsule().fill(barColor(data.utilization))
-                        .frame(width: geo.size.width * min(data.utilization, 1.0), height: 8)
+                if let u = data.utilization {
+                    Text("\(Int(u * 100))%")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .monospacedDigit().foregroundStyle(pctColor(u))
                 }
             }
-            .frame(height: 8)
-            if let reset = data.resetsAt {
-                Text("Resets \(resetText(reset))")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+            if let u = data.utilization {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.quaternary).frame(height: 6)
+                        Capsule().fill(pctColor(u)).frame(width: geo.size.width * min(u, 1.0), height: 6)
+                    }
+                }
+                .frame(height: 6)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(limitText(data))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded)).monospacedDigit()
+                if data.cost > 0 {
+                    Text(UsageFormat.cost(data.cost))
+                        .font(.system(size: 12, design: .monospaced)).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if let reset = data.resetsAt {
+                    Text("Resets \(resetText(reset))").font(.system(size: 10)).foregroundStyle(.tertiary)
+                }
             }
         }
     }
 
-    private func overageDetailRow(_ data: OverageData) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Text("Overage")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("$\(String(format: "%.2f", data.spent)) / $\(String(format: "%.2f", data.limit))")
-                    .font(.system(size: 16, weight: .bold, design: .monospaced))
-                    .foregroundStyle(barColor(data.utilization))
-            }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.quaternary).frame(height: 8)
-                    Capsule().fill(barColor(data.utilization))
-                        .frame(width: geo.size.width * min(data.utilization, 1.0), height: 8)
-                }
-            }
-            .frame(height: 8)
+    private func limitText(_ data: CategoryData) -> String {
+        if let limit = data.limitTokens, limit > 0 {
+            return "\(UsageFormat.tokens(data.tokens)) / \(UsageFormat.tokens(limit)) tok"
         }
+        return "\(UsageFormat.tokens(data.tokens)) tok"
     }
 }
 
@@ -329,25 +245,17 @@ struct LargeProjectStrip: View {
     var body: some View {
         let top = projects.topN(3)
         VStack(alignment: .leading, spacing: 4) {
-            Text("Top projects")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            Text("Top projects").font(.caption2).foregroundStyle(.secondary)
             ForEach(top) { entry in
                 HStack {
-                    Text(entry.displayName)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    Text(entry.displayName).font(.caption).lineLimit(1).truncationMode(.middle)
                     Spacer()
-                    Text("\(entry.tokens / 1000)k")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                    Text("\(UsageFormat.tokens(entry.tokens)) · \(UsageFormat.cost(entry.cost))")
+                        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
             if top.isEmpty {
-                Text("No activity yet")
-                    .font(.caption2).foregroundStyle(.secondary)
+                Text("No activity yet").font(.caption2).foregroundStyle(.secondary)
             }
         }
     }
@@ -359,17 +267,15 @@ private func statusColor(_ status: OverallStatus) -> Color {
     switch status {
     case .active: return .green
     case .warning: return .orange
-    case .rateLimited: return .red
-    case .unauthorized: return .red
-    case .forbidden: return .red
+    case .rateLimited, .unauthorized, .forbidden: return .red
     case .notLoggedIn: return .orange
     case .error, .unknown, .noLocalData: return .gray
     }
 }
 
-private func barColor(_ utilization: Double) -> Color {
-    if utilization >= 1.0 { return .red }
-    if utilization >= 0.8 { return .orange }
+private func pctColor(_ u: Double) -> Color {
+    if u >= 1.0 { return .red }
+    if u >= 0.8 { return .orange }
     return .green
 }
 

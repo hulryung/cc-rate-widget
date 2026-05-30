@@ -77,6 +77,124 @@ final class JSONLAggregatorTests: XCTestCase {
         let aEntry = snap.projects.entries.first { $0.path == "/Users/dk/dev/a" }
         XCTAssertEqual(aEntry?.tokens, 150)
     }
+
+    private func append(_ relPath: String, _ contents: String) {
+        let url = rootDir.appendingPathComponent(relPath)
+        guard let h = try? FileHandle(forWritingTo: url) else { return }
+        try? h.seekToEnd()
+        h.write(contents.data(using: .utf8)!)
+        try? h.close()
+    }
+
+    // REGRESSION: the rolling window must reflect ALL in-window events on every tick,
+    // not just the lines appended since the previous tick. Pre-fix, tick 2 only saw the
+    // newly-appended line because offsets had advanced to EOF.
+    func test_multiTick_rollingWindow_retainsEarlierEvents() throws {
+        let now = Date()
+        let ts1 = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-120))
+        writeFile("p/s.jsonl", assistantLine(ts: ts1, cwd: "/p", model: "claude-opus-4-7", inTok: 100, outTok: 0) + "\n")
+        let snap1 = try aggregator.aggregate(now: now)
+        XCTAssertEqual(snap1.fiveHourTokens, 100)
+
+        // A new event is appended; tick 2 must report BOTH events (both still in-window).
+        let ts2 = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60))
+        append("p/s.jsonl", assistantLine(ts: ts2, cwd: "/p", model: "claude-opus-4-7", inTok: 25, outTok: 0) + "\n")
+        let snap2 = try aggregator.aggregate(now: now)
+        XCTAssertEqual(snap2.fiveHourTokens, 125)
+        XCTAssertEqual(snap2.sevenDayTokens, 125)
+    }
+
+    // A tick with no new lines must still report the full retained window.
+    func test_multiTick_noNewLines_stillReportsWindow() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60))
+        writeFile("p/s.jsonl", assistantLine(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 200, outTok: 0) + "\n")
+        XCTAssertEqual(try aggregator.aggregate(now: now).fiveHourTokens, 200)
+        // Second tick reads zero new bytes but must still see the stored event.
+        XCTAssertEqual(try aggregator.aggregate(now: now).fiveHourTokens, 200)
+    }
+
+    // Events fall out of the window as time advances between ticks.
+    func test_multiTick_ageOut_dropsExpiredEvents() throws {
+        let base = Date()
+        let ts = AggTestISOFormatter.shared.string(from: base.addingTimeInterval(-3600)) // 1h ago at base
+        writeFile("p/s.jsonl", assistantLine(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 100, outTok: 0) + "\n")
+        XCTAssertEqual(try aggregator.aggregate(now: base).fiveHourTokens, 100)
+
+        // 8 days later: the event is outside the 7-day window and must be gone.
+        let later = base.addingTimeInterval(8 * 86400)
+        let snap = try aggregator.aggregate(now: later)
+        XCTAssertEqual(snap.sevenDayTokens, 0)
+        XCTAssertEqual(snap.fiveHourTokens, 0)
+    }
+
+    // File truncation/rotation must not double-count: the bucket is rebuilt from 0.
+    func test_fileTruncation_doesNotDoubleCount() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60))
+        writeFile("p/s.jsonl",
+            assistantLine(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 100, outTok: 0) + "\n" +
+            assistantLine(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 100, outTok: 0) + "\n")
+        XCTAssertEqual(try aggregator.aggregate(now: now).fiveHourTokens, 200)
+
+        // Rewrite the file smaller (rotation). Atomic write replaces contents.
+        writeFile("p/s.jsonl", assistantLine(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 5, outTok: 0) + "\n")
+        XCTAssertEqual(try aggregator.aggregate(now: now).fiveHourTokens, 5)
+    }
+
+    // A deleted file's events must not linger in the rolling store.
+    func test_deletedFile_eventsAreEvicted() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60))
+        writeFile("p/s.jsonl", assistantLine(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 100, outTok: 0) + "\n")
+        XCTAssertEqual(try aggregator.aggregate(now: now).fiveHourTokens, 100)
+
+        try FileManager.default.removeItem(at: rootDir.appendingPathComponent("p/s.jsonl"))
+        XCTAssertEqual(try aggregator.aggregate(now: now).fiveHourTokens, 0)
+    }
+
+    private func assistantLineWithID(ts: String, cwd: String, model: String, inTok: Int, msgID: String, reqID: String) -> String {
+        """
+        {"type":"assistant","timestamp":"\(ts)","sessionId":"s","requestId":"\(reqID)","cwd":"\(cwd)","message":{"id":"\(msgID)","model":"\(model)","usage":{"input_tokens":\(inTok),"output_tokens":0}}}
+        """
+    }
+
+    // REGRESSION: Claude Code logs the same assistant turn in multiple files; counting
+    // every line double-counts. Same (messageId, requestId) across two files = counted once.
+    func test_dedupe_sameMessageAcrossFiles_countedOnce() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60))
+        let line = assistantLineWithID(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 100, msgID: "msg_abc", reqID: "req_1")
+        writeFile("a/session.jsonl", line + "\n")
+        writeFile("b/summary.jsonl", line + "\n")   // duplicate of the same turn
+        let snap = try aggregator.aggregate(now: now)
+        XCTAssertEqual(snap.fiveHourTokens, 100, "duplicate of same message must be counted once")
+        XCTAssertEqual(snap.projects.entries.reduce(0) { $0 + $1.tokens }, 100)
+    }
+
+    func test_dedupe_differentMessages_bothCounted() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60))
+        writeFile("p/s.jsonl",
+            assistantLineWithID(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 100, msgID: "m1", reqID: "r1") + "\n" +
+            assistantLineWithID(ts: ts, cwd: "/p", model: "claude-opus-4-7", inTok: 50,  msgID: "m2", reqID: "r2") + "\n")
+        XCTAssertEqual(try aggregator.aggregate(now: now).fiveHourTokens, 150)
+    }
+
+    // Pure window math, isolated from the filesystem.
+    func test_computeSnapshot_windows() {
+        let now = Date()
+        let nowT = now.timeIntervalSince1970
+        let events = [
+            StoredEvent(t: nowT - 60,         tokens: 100, sonnet: false, cost: 0.1, project: "/a"),
+            StoredEvent(t: nowT - 6 * 3600,   tokens: 200, sonnet: true,  cost: 0.2, project: "/a"), // outside 5h, in 7d
+            StoredEvent(t: nowT - 8 * 86400,  tokens: 999, sonnet: false, cost: 9.9, project: "/a"), // outside 7d
+        ]
+        let snap = JSONLAggregator.computeSnapshot(events: events, now: now)
+        XCTAssertEqual(snap.fiveHourTokens, 100)
+        XCTAssertEqual(snap.sevenDayTokens, 300)
+        XCTAssertEqual(snap.sevenDaySonnetTokens, 200)
+    }
 }
 
 /// Test-only ISO formatter; named to avoid colliding with anything in Shared/.

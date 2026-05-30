@@ -19,8 +19,11 @@ enum Pricing {
         let cacheRead: Double
     }
 
+    // $/Mtok. Opus 4.5+ was repriced to $5/$25 (down from the old $15/$75); cache write =
+    // 1.25× input, cache read = 0.1× input. Verified against ccusage/LiteLLM — with these
+    // rates our per-model cost matches ccusage exactly for opus, sonnet, and haiku.
     private static let rates: [(prefix: String, rate: Rate)] = [
-        ("claude-opus-4",   Rate(input: 15.00, output: 75.00, cacheWrite: 18.75, cacheRead: 1.50)),
+        ("claude-opus-4",   Rate(input:  5.00, output: 25.00, cacheWrite:  6.25, cacheRead: 0.50)),
         ("claude-sonnet-4", Rate(input:  3.00, output: 15.00, cacheWrite:  3.75, cacheRead: 0.30)),
         ("claude-haiku-4",  Rate(input:  1.00, output:  5.00, cacheWrite:  1.25, cacheRead: 0.10)),
     ]

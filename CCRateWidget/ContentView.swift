@@ -26,7 +26,8 @@ struct ContentView: View {
         }
         .frame(minWidth: 520, minHeight: 420)
         .task {
-            coordinator.start()
+            // AppDelegate owns coordinator lifecycle (start on launch). Here we only
+            // surface the latest snapshot/projects when the window appears.
             refreshProjects()
         }
         .onReceive(coordinator.$lastSnapshot) { _ in refreshProjects() }
@@ -60,19 +61,48 @@ private struct DashboardSection: View {
 private struct LimitRow: View {
     let label: String
     let cat: CategoryData
+    var showCost: Bool = true
     var body: some View {
-        VStack(alignment: .leading) {
-            Text(label).font(.headline)
-            ProgressView(value: min(cat.utilization, 1.0))
-            HStack {
-                Text("\(Int(cat.utilization * 100))%")
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label).font(.headline)
+                Spacer()
+                if let u = cat.utilization {
+                    Text("\(Int(u * 100))%")
+                        .font(.headline).monospacedDigit()
+                        .foregroundStyle(pctColor(u))
+                }
+            }
+            if let u = cat.utilization {
+                ProgressView(value: min(u, 1.0)).tint(pctColor(u))
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(limitText)
+                    .font(.subheadline.weight(.semibold)).monospacedDigit()
+                if showCost && cat.cost > 0 {
+                    Text(UsageFormat.cost(cat.cost))
+                        .font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                }
                 Spacer()
                 if let resetsAt = cat.resetsAt {
                     Text("resets \(resetsAt, style: .relative)")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
-            .font(.caption).foregroundStyle(.secondary)
         }
+    }
+
+    private var limitText: String {
+        if let limit = cat.limitTokens, limit > 0 {
+            return "\(UsageFormat.tokens(cat.tokens)) / \(UsageFormat.tokens(limit)) tok"
+        }
+        return "\(UsageFormat.tokens(cat.tokens)) tok"
+    }
+
+    private func pctColor(_ u: Double) -> Color {
+        if u >= 1.0 { return .red }
+        if u >= 0.8 { return .orange }
+        return .green
     }
 }
 

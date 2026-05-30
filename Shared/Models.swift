@@ -42,36 +42,46 @@ struct ExtraUsage: Codable {
 
 // MARK: - Widget Data Model
 
+/// Absolute usage for one rolling window. JSONL gives accurate token counts and cost;
+/// it cannot give Anthropic's quota percentage. A percentage is shown only when the user
+/// supplies their own token limit (`limitTokens`); otherwise it stays nil and the UI
+/// shows absolute usage alone.
+struct CategoryData {
+    let tokens: Int
+    let cost: Double         // USD
+    let resetsAt: Date?      // when the window's earliest event ages out
+    var limitTokens: Int?    // user-entered cap; nil = no percentage shown
+
+    init(tokens: Int, cost: Double, resetsAt: Date?, limitTokens: Int? = nil) {
+        self.tokens = tokens
+        self.cost = cost
+        self.resetsAt = resetsAt
+        self.limitTokens = limitTokens
+    }
+
+    /// 0…1+ when a limit is set, else nil.
+    var utilization: Double? {
+        guard let limitTokens, limitTokens > 0 else { return nil }
+        return Double(tokens) / Double(limitTokens)
+    }
+}
+
 struct RateData {
     let session: CategoryData       // five_hour
     let weekly: CategoryData        // seven_day
     let weeklySonnet: CategoryData  // seven_day_sonnet
-    let overage: OverageData        // extra_usage
     let fetchedAt: Date
     let status: OverallStatus
     let source: RateDataSource
 
     static let placeholder = RateData(
-        session: CategoryData(utilization: 0.35, resetsAt: Date().addingTimeInterval(3600)),
-        weekly: CategoryData(utilization: 0.52, resetsAt: Date().addingTimeInterval(86400)),
-        weeklySonnet: CategoryData(utilization: 0.28, resetsAt: Date().addingTimeInterval(86400)),
-        overage: OverageData(isEnabled: false, utilization: 0, spent: 0, limit: 0),
+        session: CategoryData(tokens: 240_000, cost: 1.20, resetsAt: Date().addingTimeInterval(3600), limitTokens: 1_000_000),
+        weekly: CategoryData(tokens: 3_800_000, cost: 24.00, resetsAt: Date().addingTimeInterval(86400), limitTokens: 10_000_000),
+        weeklySonnet: CategoryData(tokens: 120_000, cost: 0.40, resetsAt: Date().addingTimeInterval(86400)),
         fetchedAt: Date(),
         status: .active,
         source: .jsonl
     )
-}
-
-struct CategoryData {
-    let utilization: Double  // 0.0 to 1.0
-    let resetsAt: Date?
-}
-
-struct OverageData {
-    let isEnabled: Bool
-    let utilization: Double  // 0.0 to 1.0
-    let spent: Double        // dollars
-    let limit: Double        // dollars
 }
 
 enum OverallStatus: String {
@@ -142,77 +152,3 @@ struct ProjectBreakdown: Codable {
     }
 }
 
-// MARK: - Inferred Limits
-
-struct InferredLimits: Codable {
-    /// nil when we don't yet have a confident estimate (learning state).
-    var fiveHourTokens: Int? = nil
-    var sevenDayTokens: Int? = nil
-    var sevenDaySonnetTokens: Int? = nil
-
-    /// Highest 7d-window total ever observed (for rolling 1.05× ratchet).
-    var weeklyMaxObserved: Int = 0
-    var fiveHourMaxObserved: Int = 0
-
-    /// Optional cached values pulled from OAuth (when enabled).
-    var officialFiveHourTokens: Int? = nil
-    var officialSevenDayTokens: Int? = nil
-
-    var weeklySamples: [Int] = []
-    var fiveHourSamples: [Int] = []
-
-    /// Manual user override; when non-nil, beats both P90 and official.
-    var manualPlanTier: ManualPlanTier? = nil
-
-    enum ManualPlanTier: String, Codable {
-        case pro
-        case max5
-        case max20
-    }
-
-    init(
-        fiveHourTokens: Int? = nil,
-        sevenDayTokens: Int? = nil,
-        sevenDaySonnetTokens: Int? = nil,
-        weeklyMaxObserved: Int = 0,
-        fiveHourMaxObserved: Int = 0,
-        officialFiveHourTokens: Int? = nil,
-        officialSevenDayTokens: Int? = nil,
-        weeklySamples: [Int] = [],
-        fiveHourSamples: [Int] = [],
-        manualPlanTier: ManualPlanTier? = nil
-    ) {
-        self.fiveHourTokens = fiveHourTokens
-        self.sevenDayTokens = sevenDayTokens
-        self.sevenDaySonnetTokens = sevenDaySonnetTokens
-        self.weeklyMaxObserved = weeklyMaxObserved
-        self.fiveHourMaxObserved = fiveHourMaxObserved
-        self.officialFiveHourTokens = officialFiveHourTokens
-        self.officialSevenDayTokens = officialSevenDayTokens
-        self.weeklySamples = weeklySamples
-        self.fiveHourSamples = fiveHourSamples
-        self.manualPlanTier = manualPlanTier
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case fiveHourTokens, sevenDayTokens, sevenDaySonnetTokens
-        case weeklyMaxObserved, fiveHourMaxObserved
-        case officialFiveHourTokens, officialSevenDayTokens
-        case weeklySamples, fiveHourSamples
-        case manualPlanTier
-    }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        self.fiveHourTokens         = try c.decodeIfPresent(Int.self, forKey: .fiveHourTokens)
-        self.sevenDayTokens         = try c.decodeIfPresent(Int.self, forKey: .sevenDayTokens)
-        self.sevenDaySonnetTokens   = try c.decodeIfPresent(Int.self, forKey: .sevenDaySonnetTokens)
-        self.weeklyMaxObserved      = try c.decodeIfPresent(Int.self, forKey: .weeklyMaxObserved) ?? 0
-        self.fiveHourMaxObserved    = try c.decodeIfPresent(Int.self, forKey: .fiveHourMaxObserved) ?? 0
-        self.officialFiveHourTokens = try c.decodeIfPresent(Int.self, forKey: .officialFiveHourTokens)
-        self.officialSevenDayTokens = try c.decodeIfPresent(Int.self, forKey: .officialSevenDayTokens)
-        self.weeklySamples          = try c.decodeIfPresent([Int].self, forKey: .weeklySamples) ?? []
-        self.fiveHourSamples        = try c.decodeIfPresent([Int].self, forKey: .fiveHourSamples) ?? []
-        self.manualPlanTier         = try c.decodeIfPresent(ManualPlanTier.self, forKey: .manualPlanTier)
-    }
-}
