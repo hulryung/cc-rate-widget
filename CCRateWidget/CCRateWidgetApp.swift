@@ -12,7 +12,7 @@ struct CCRateWidgetApp: App {
             ContentView()
                 .task { await requestNotificationsIfNeeded() }
         }
-        .defaultSize(width: 560, height: 440)
+        .defaultSize(width: 760, height: 520)
     }
 
     private func requestNotificationsIfNeeded() async {

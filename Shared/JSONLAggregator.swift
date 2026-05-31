@@ -45,6 +45,10 @@ struct AggregationSnapshot {
 
     /// Burn rate over the last 30 minutes, in tokens per second.
     var lastHalfHourTokensPerSecond: Double
+
+    /// P90 of the user's own historical 5-hour block token totals — a self-calibrated
+    /// "typical peak" denominator. nil until there are enough active blocks to be meaningful.
+    var typicalFiveHourPeak: Int?
 }
 
 final class JSONLAggregator {
@@ -135,7 +139,8 @@ final class JSONLAggregator {
         var halfHourTokens = 0
         var perProjectTokens: [String: Int] = [:]
         var perProjectCost:   [String: Double] = [:]
-        var seen = Set<String>()   // dedupe: same event logged in multiple files
+        var blockTotals: [Int: Int] = [:]   // fixed 5h block index → tokens (for P90 peak)
+        var seen = Set<String>()            // dedupe: same event logged in multiple files
 
         for e in events {
             let age = nowT - e.t
@@ -158,7 +163,14 @@ final class JSONLAggregator {
 
             perProjectTokens[e.project, default: 0] += e.tokens
             perProjectCost[e.project, default: 0]   += e.cost
+
+            blockTotals[Int(e.t / fiveHours), default: 0] += e.tokens
         }
+
+        // Typical 5-hour peak = P90 of past active blocks (exclude the in-progress block).
+        let currentBlock = Int(nowT / fiveHours)
+        let activeBlocks = blockTotals.filter { $0.key != currentBlock && $0.value > 0 }.values.sorted()
+        let typicalPeak = activeBlocks.count >= 3 ? percentile(activeBlocks, 0.90) : nil
 
         let entries = perProjectTokens.map { (cwd, tokens) in
             ProjectBreakdown.Entry(
@@ -178,8 +190,16 @@ final class JSONLAggregator {
             earliestInFiveHour: earliest5h.map(Date.init(timeIntervalSince1970:)),
             earliestInSevenDay: earliest7d.map(Date.init(timeIntervalSince1970:)),
             projects: ProjectBreakdown(entries: entries),
-            lastHalfHourTokensPerSecond: Double(halfHourTokens) / halfHour
+            lastHalfHourTokensPerSecond: Double(halfHourTokens) / halfHour,
+            typicalFiveHourPeak: typicalPeak
         )
+    }
+
+    /// Linear-interpolation-free percentile (nearest-rank) over a pre-sorted ascending array.
+    private static func percentile(_ sorted: [Int], _ p: Double) -> Int {
+        guard !sorted.isEmpty else { return 0 }
+        let idx = max(0, min(sorted.count - 1, Int((Double(sorted.count) * p).rounded(.down))))
+        return sorted[idx]
     }
 
     private func fileSize(at path: String) -> UInt64 {

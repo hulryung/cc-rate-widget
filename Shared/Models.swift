@@ -42,21 +42,28 @@ struct ExtraUsage: Codable {
 
 // MARK: - Widget Data Model
 
-/// Absolute usage for one rolling window. JSONL gives accurate token counts and cost;
-/// it cannot give Anthropic's quota percentage. A percentage is shown only when the user
-/// supplies their own token limit (`limitTokens`); otherwise it stays nil and the UI
-/// shows absolute usage alone.
+/// What the `limitTokens` denominator represents — so the UI can label the percentage
+/// honestly. JSONL can't give Anthropic's official quota %, so a percentage is always
+/// either against a user-entered cap or against the user's own observed peak.
+enum LimitKind: String {
+    case userLimit     // user typed a token cap in Settings
+    case typicalPeak   // P90 of the user's own historical 5-hour blocks (self-calibrated)
+}
+
+/// Absolute usage for one rolling window. JSONL gives accurate token counts and cost.
 struct CategoryData {
     let tokens: Int
     let cost: Double         // USD
     let resetsAt: Date?      // when the window's earliest event ages out
-    var limitTokens: Int?    // user-entered cap; nil = no percentage shown
+    var limitTokens: Int?    // denominator for the percentage; nil = no percentage
+    var limitKind: LimitKind?
 
-    init(tokens: Int, cost: Double, resetsAt: Date?, limitTokens: Int? = nil) {
+    init(tokens: Int, cost: Double, resetsAt: Date?, limitTokens: Int? = nil, limitKind: LimitKind? = nil) {
         self.tokens = tokens
         self.cost = cost
         self.resetsAt = resetsAt
         self.limitTokens = limitTokens
+        self.limitKind = limitKind
     }
 
     /// 0…1+ when a limit is set, else nil.
@@ -73,14 +80,16 @@ struct RateData {
     let fetchedAt: Date
     let status: OverallStatus
     let source: RateDataSource
+    var burnTokensPerSecond: Double = 0   // last 30 min, for time-to-limit projection
 
     static let placeholder = RateData(
-        session: CategoryData(tokens: 240_000, cost: 1.20, resetsAt: Date().addingTimeInterval(3600), limitTokens: 1_000_000),
-        weekly: CategoryData(tokens: 3_800_000, cost: 24.00, resetsAt: Date().addingTimeInterval(86400), limitTokens: 10_000_000),
+        session: CategoryData(tokens: 240_000, cost: 1.20, resetsAt: Date().addingTimeInterval(3600), limitTokens: 1_000_000, limitKind: .typicalPeak),
+        weekly: CategoryData(tokens: 3_800_000, cost: 24.00, resetsAt: Date().addingTimeInterval(86400), limitTokens: 10_000_000, limitKind: .userLimit),
         weeklySonnet: CategoryData(tokens: 120_000, cost: 0.40, resetsAt: Date().addingTimeInterval(86400)),
         fetchedAt: Date(),
         status: .active,
-        source: .jsonl
+        source: .jsonl,
+        burnTokensPerSecond: 1800
     )
 }
 

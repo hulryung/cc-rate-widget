@@ -18,4 +18,10 @@ enum UsageFormat {
     static func cost(_ d: Double) -> String {
         String(format: "$%.2f", d)
     }
+
+    /// 47 → "47m", 190 → "3h 10m".
+    static func duration(minutes: Int) -> String {
+        if minutes < 60 { return "\(minutes)m" }
+        return "\(minutes / 60)h \(minutes % 60)m"
+    }
 }

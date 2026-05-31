@@ -75,25 +75,37 @@ private struct PersistedRate: Codable {
     let status: String
     let source: String
 
+    var burnTokensPerSecond: Double?
+
     struct Cat: Codable {
         let tokens: Int
         let cost: Double
         let resetsAt: Double?
         var limitTokens: Int?
+        var limitKind: String?
 
         init(_ c: CategoryData) {
             self.tokens = c.tokens; self.cost = c.cost
             self.resetsAt = c.resetsAt?.timeIntervalSince1970
             self.limitTokens = c.limitTokens
+            self.limitKind = c.limitKind?.rawValue
         }
 
-        private enum CodingKeys: String, CodingKey { case tokens, cost, resetsAt, limitTokens }
+        private enum CodingKeys: String, CodingKey { case tokens, cost, resetsAt, limitTokens, limitKind }
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             self.tokens = try c.decode(Int.self, forKey: .tokens)
             self.cost = try c.decode(Double.self, forKey: .cost)
             self.resetsAt = try c.decodeIfPresent(Double.self, forKey: .resetsAt)
             self.limitTokens = try c.decodeIfPresent(Int.self, forKey: .limitTokens)
+            self.limitKind = try c.decodeIfPresent(String.self, forKey: .limitKind)
+        }
+
+        var category: CategoryData {
+            CategoryData(tokens: tokens, cost: cost,
+                         resetsAt: resetsAt.map(Date.init(timeIntervalSince1970:)),
+                         limitTokens: limitTokens,
+                         limitKind: limitKind.flatMap(LimitKind.init(rawValue:)))
         }
     }
 
@@ -104,21 +116,18 @@ private struct PersistedRate: Codable {
         self.fetchedAt = r.fetchedAt.timeIntervalSince1970
         self.status = r.status.rawValue
         self.source = r.source.rawValue
+        self.burnTokensPerSecond = r.burnTokensPerSecond
     }
 
     func toRateData() -> RateData {
-        func cat(_ c: Cat) -> CategoryData {
-            CategoryData(tokens: c.tokens, cost: c.cost,
-                         resetsAt: c.resetsAt.map(Date.init(timeIntervalSince1970:)),
-                         limitTokens: c.limitTokens)
-        }
-        return RateData(
-            session: cat(session),
-            weekly: cat(weekly),
-            weeklySonnet: cat(weeklySonnet),
+        RateData(
+            session: session.category,
+            weekly: weekly.category,
+            weeklySonnet: weeklySonnet.category,
             fetchedAt: Date(timeIntervalSince1970: fetchedAt),
             status: OverallStatus(rawValue: status) ?? .unknown,
-            source: RateDataSource(rawValue: source) ?? .jsonl
+            source: RateDataSource(rawValue: source) ?? .jsonl,
+            burnTokensPerSecond: burnTokensPerSecond ?? 0
         )
     }
 }

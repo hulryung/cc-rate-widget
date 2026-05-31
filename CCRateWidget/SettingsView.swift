@@ -7,55 +7,69 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Usage") {
+            Section {
                 Text("Claude Rate Widget reports the tokens and cost recorded in your local Claude Code logs.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.callout).foregroundStyle(.secondary)
+            } header: {
+                Text("Usage")
             }
-            Section("Percentage (optional)") {
-                HStack {
-                    Text("5-hour limit")
-                    Spacer()
-                    TextField("none", value: $store.fiveHourLimitMillions, format: .number)
-                        .frame(width: 80).multilineTextAlignment(.trailing)
-                    Text("M tok").foregroundStyle(.secondary)
+
+            Section {
+                LabeledContent("5-hour limit") {
+                    limitField($store.fiveHourLimitMillions)
                 }
-                HStack {
-                    Text("Weekly limit")
-                    Spacer()
-                    TextField("none", value: $store.weeklyLimitMillions, format: .number)
-                        .frame(width: 80).multilineTextAlignment(.trailing)
-                    Text("M tok").foregroundStyle(.secondary)
+                LabeledContent("Weekly limit") {
+                    limitField($store.weeklyLimitMillions)
                 }
+            } header: {
+                Text("Percentage (optional)")
+            } footer: {
                 Text("Enter your plan's token limits (in millions) to show a percentage. Leave at 0 to show absolute usage only. Local logs can't read Anthropic's official quota %, so this is measured against the limit you provide.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             .onChange(of: store.fiveHourLimitMillions) { _, _ in AggregationCoordinator.shared.runOnce() }
             .onChange(of: store.weeklyLimitMillions) { _, _ in AggregationCoordinator.shared.runOnce() }
-            Section("Background") {
-                Toggle("Run in menu bar (recommended for alerts)", isOn: $store.menuBarEnabled)
+
+            Section {
+                Toggle("Run in menu bar", isOn: $store.menuBarEnabled)
                     .onChange(of: store.menuBarEnabled) { _, _ in showRelaunchPrompt = true }
-                Text("Required for notifications to fire even when the main window is closed.")
+            } header: {
+                Text("Background")
+            } footer: {
+                Text("Keeps the app alive so it can refresh and (later) fire notifications even when the window is closed.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
-            Section("Anthropic OAuth (optional)") {
+
+            Section {
                 Toggle("Pull official quota when available", isOn: $store.oauthEnabled)
                     .disabled(true)
-                Text("Coming in a later release. Off and inert in 1.7 — the widget runs entirely on local JSONL data.")
+            } header: {
+                Text("Anthropic OAuth")
+            } footer: {
+                Text("Coming in a later release. Inert for now — the widget runs entirely on local data.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
+
             Section("Data") {
                 Button("Re-prompt for ~/.claude access") {
                     HomeAccessPrompter.shared.prompt()
                 }
             }
         }
-        .padding(20)
-        .frame(width: 480)
+        .formStyle(.grouped)
         .alert("Menu bar setting saved", isPresented: $showRelaunchPrompt) {
             Button("Quit and reopen") { NSApplication.relaunchApp() }
             Button("Later", role: .cancel) {}
         } message: {
             Text("Menu bar mode setting saved. The Dock icon will remain visible — relaunching is only needed to attach (or detach) the menu-bar item this session.")
+        }
+    }
+
+    private func limitField(_ binding: Binding<Double>) -> some View {
+        HStack(spacing: 6) {
+            TextField("0", value: binding, format: .number)
+                .frame(width: 70).multilineTextAlignment(.trailing)
+            Text("M tok").foregroundStyle(.secondary)
         }
     }
 }

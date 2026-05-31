@@ -76,23 +76,34 @@ final class AggregationCoordinator: ObservableObject {
         let fiveHourCap = cap(SettingsStore.fiveHourLimitKey)
         let weeklyCap   = cap(SettingsStore.weeklyLimitKey)
 
-        func cat(tokens: Int, cost: Double, earliest: Date?, window: TimeInterval, limit: Int?) -> CategoryData {
+        func cat(tokens: Int, cost: Double, earliest: Date?, window: TimeInterval,
+                 limit: Int?, kind: LimitKind?) -> CategoryData {
             CategoryData(tokens: tokens, cost: cost,
                          resetsAt: earliest.map { $0.addingTimeInterval(window) },
-                         limitTokens: limit)
+                         limitTokens: limit, limitKind: kind)
         }
+
+        // Session 5h denominator: user cap if set, else the self-calibrated P90 "typical peak".
+        let sessionLimit: Int?; let sessionKind: LimitKind?
+        if let c = fiveHourCap { sessionLimit = c; sessionKind = .userLimit }
+        else if let p = snap.typicalFiveHourPeak { sessionLimit = p; sessionKind = .typicalPeak }
+        else { sessionLimit = nil; sessionKind = nil }
 
         let rate = RateData(
             session:      cat(tokens: snap.fiveHourTokens, cost: snap.fiveHourCost,
-                              earliest: snap.earliestInFiveHour, window: 5 * 3600, limit: fiveHourCap),
+                              earliest: snap.earliestInFiveHour, window: 5 * 3600,
+                              limit: sessionLimit, kind: sessionKind),
             weekly:       cat(tokens: snap.sevenDayTokens, cost: snap.sevenDayCost,
-                              earliest: snap.earliestInSevenDay, window: 7 * 86400, limit: weeklyCap),
+                              earliest: snap.earliestInSevenDay, window: 7 * 86400,
+                              limit: weeklyCap, kind: weeklyCap != nil ? .userLimit : nil),
             // Sonnet cost isn't tracked per-window yet; tokens are accurate. No separate cap.
             weeklySonnet: cat(tokens: snap.sevenDaySonnetTokens, cost: 0,
-                              earliest: snap.earliestInSevenDay, window: 7 * 86400, limit: nil),
+                              earliest: snap.earliestInSevenDay, window: 7 * 86400,
+                              limit: nil, kind: nil),
             fetchedAt: now,
             status: .active,
-            source: .jsonl
+            source: .jsonl,
+            burnTokensPerSecond: snap.lastHalfHourTokensPerSecond
         )
 
         try store.writeRate(rate)

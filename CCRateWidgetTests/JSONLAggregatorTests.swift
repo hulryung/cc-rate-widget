@@ -181,6 +181,31 @@ final class JSONLAggregatorTests: XCTestCase {
         XCTAssertEqual(try aggregator.aggregate(now: now).fiveHourTokens, 150)
     }
 
+    func test_computeSnapshot_typicalPeak_p90OfPastBlocks() {
+        let now = Date()
+        let nowT = now.timeIntervalSince1970
+        let blockLen = 5.0 * 3600
+        // 5 past 5-hour blocks with varying totals; current block excluded.
+        var events: [StoredEvent] = []
+        let pastTotals = [100, 200, 300, 400, 5000]   // P90 (nearest-rank) → 5000
+        for (i, total) in pastTotals.enumerated() {
+            let t = nowT - Double(i + 1) * blockLen   // each in a distinct earlier block
+            events.append(StoredEvent(t: t, tokens: total, sonnet: false, cost: 0, project: "/p", id: "b\(i)"))
+        }
+        let snap = JSONLAggregator.computeSnapshot(events: events, now: now)
+        XCTAssertNotNil(snap.typicalFiveHourPeak)
+        XCTAssertEqual(snap.typicalFiveHourPeak, 5000)
+    }
+
+    func test_computeSnapshot_typicalPeak_nilWhenTooFewBlocks() {
+        let now = Date()
+        let nowT = now.timeIntervalSince1970
+        let events = [
+            StoredEvent(t: nowT - 6 * 3600, tokens: 100, sonnet: false, cost: 0, project: "/p", id: "x"),
+        ]
+        XCTAssertNil(JSONLAggregator.computeSnapshot(events: events, now: now).typicalFiveHourPeak)
+    }
+
     // Pure window math, isolated from the filesystem.
     func test_computeSnapshot_windows() {
         let now = Date()
