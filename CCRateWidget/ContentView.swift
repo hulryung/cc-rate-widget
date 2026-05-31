@@ -149,6 +149,25 @@ private struct DashboardHeader: View {
     }
 }
 
+/// Reset moment (weekday · date · hour) with a coarse "time left" pill — no minutes.
+private struct ResetLine: View {
+    let date: Date
+    var compact: Bool = false
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.clockwise.circle").foregroundStyle(.tertiary)
+            Text(UsageFormat.resetMoment(date))
+                .foregroundStyle(.secondary).lineLimit(1)
+            Text(UsageFormat.remainingCoarse(until: date) + " left")
+                .font(compact ? .caption2 : .caption).fontWeight(.semibold)
+                .padding(.horizontal, 6).padding(.vertical, 1)
+                .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                .foregroundStyle(.secondary)
+        }
+        .font(compact ? .caption2 : .caption)
+    }
+}
+
 /// Caption under a usage bar, worded by what the denominator means.
 private func limitCaption(_ cat: CategoryData, plan: String? = nil) -> String? {
     guard let kind = cat.limitKind, let u = cat.utilization else { return nil }
@@ -183,15 +202,15 @@ private struct HeroCard: View {
     var plan: String? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
-                Image(systemName: systemImage).foregroundStyle(.secondary)
+                Image(systemName: systemImage).foregroundStyle(Color.accentColor)
                 Text(label).font(.headline)
-                Spacer()
-                if let resetsAt = cat.resetsAt {
-                    Label("\(resetsAt, style: .relative)", systemImage: "arrow.clockwise")
-                        .font(.caption).foregroundStyle(.tertiary).labelStyle(.titleAndIcon)
-                }
+                if let u = cat.utilization {
+                    Spacer()
+                    Text("\(Int(u * 100))%")
+                        .font(.title3.weight(.bold)).monospacedDigit().foregroundStyle(pctColor(u))
+                } else { Spacer() }
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -206,7 +225,7 @@ private struct HeroCard: View {
             }
 
             if cat.utilization != nil {
-                UsageBar(utilization: cat.utilization!, height: 16)
+                UsageBar(utilization: cat.utilization!, height: 16, showLabel: false)
                 HStack {
                     if let cap = limitCaption(cat, plan: plan) {
                         Text(cap).font(.caption).foregroundStyle(.secondary)
@@ -219,6 +238,11 @@ private struct HeroCard: View {
             } else {
                 Text("Set a weekly limit in Settings to see a percentage")
                     .font(.caption).foregroundStyle(.tertiary)
+            }
+
+            if let resetsAt = cat.resetsAt {
+                Divider()
+                ResetLine(date: resetsAt)
             }
         }
         .card()
@@ -258,8 +282,7 @@ private struct StatCard: View {
                 }
             }
             if let resetsAt = cat.resetsAt {
-                Text("resets \(resetsAt, style: .relative)")
-                    .font(.caption2).foregroundStyle(.tertiary)
+                ResetLine(date: resetsAt, compact: true)
             }
         }
         .card()

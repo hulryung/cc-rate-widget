@@ -192,7 +192,8 @@ struct LargeWidgetView: View {
                 }
                 Spacer()
                 if let reset = data.resetsAt {
-                    Text("Resets \(resetText(reset))").font(.system(size: 10)).foregroundStyle(.tertiary)
+                    Text("Resets \(UsageFormat.resetMoment(reset)) · \(resetText(reset))")
+                        .font(.system(size: 10)).foregroundStyle(.tertiary)
                 }
             }
         }
@@ -280,9 +281,7 @@ private func pctColor(_ u: Double) -> Color {
 }
 
 private func resetText(_ date: Date) -> String {
-    let formatter = RelativeDateTimeFormatter()
-    formatter.unitsStyle = .abbreviated
-    return formatter.localizedString(for: date, relativeTo: Date())
+    UsageFormat.remainingCoarse(until: date) + " left"   // days/hours only, no minutes
 }
 
 // MARK: - Previews
