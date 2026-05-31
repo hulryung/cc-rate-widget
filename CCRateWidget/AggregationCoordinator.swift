@@ -100,14 +100,37 @@ final class AggregationCoordinator: ObservableObject {
                          limit: nil, kind: nil)
 
         // Official Anthropic % (opt-in): overlays the real utilization from Claude Code's
-        // keychain token, so the bars match `/status`. Falls back to local on any failure.
+        // keychain token, so the bars match `/status`. Throttled — the cached official %
+        // is reused for up to 15 min — so we don't hit the keychain (and its macOS prompt)
+        // on every 5-minute tick / launch. Falls back to local on any failure.
         var source: RateDataSource = .jsonl
+        var officialAt: Date? = nil
         let oauthOn = (suite?.bool(forKey: "oauthEnabled")) ?? false
-        if oauthOn, let off = OfficialUsage.fetch() {
-            session = session.withOfficial(off.fiveHour, resetsAt: off.fiveHourResetsAt)
-            weekly  = weekly.withOfficial(off.sevenDay, resetsAt: off.sevenDayResetsAt)
-            sonnet  = sonnet.withOfficial(off.sevenDaySonnet, resetsAt: off.sevenDayResetsAt)
-            source  = .oauth
+        if oauthOn {
+            let throttle: TimeInterval = 15 * 60
+            let prev = try? store.readRate()
+            var official: OfficialUsage?
+            if let prev, prev.source == .oauth,
+               let pAt = prev.officialFetchedAt, now.timeIntervalSince(pAt) < throttle,
+               let f = prev.session.officialUtilization {
+                official = OfficialUsage(
+                    fiveHour: f,
+                    sevenDay: prev.weekly.officialUtilization ?? 0,
+                    sevenDaySonnet: prev.weeklySonnet.officialUtilization ?? 0,
+                    fiveHourResetsAt: prev.session.resetsAt,
+                    sevenDayResetsAt: prev.weekly.resetsAt
+                )
+                officialAt = pAt
+            } else {
+                official = OfficialUsage.fetch()   // reads keychain (may prompt the first time)
+                officialAt = official != nil ? now : nil
+            }
+            if let off = official {
+                session = session.withOfficial(off.fiveHour, resetsAt: off.fiveHourResetsAt)
+                weekly  = weekly.withOfficial(off.sevenDay, resetsAt: off.sevenDayResetsAt)
+                sonnet  = sonnet.withOfficial(off.sevenDaySonnet, resetsAt: off.sevenDayResetsAt)
+                source  = .oauth
+            }
         }
 
         let rate = RateData(
@@ -116,7 +139,8 @@ final class AggregationCoordinator: ObservableObject {
             status: .active,
             source: source,
             burnTokensPerSecond: snap.lastHalfHourTokensPerSecond,
-            planName: ClaudePlan.detect()
+            planName: ClaudePlan.detect(),
+            officialFetchedAt: officialAt
         )
 
         try store.writeRate(rate)

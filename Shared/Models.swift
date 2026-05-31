@@ -93,6 +93,7 @@ struct RateData {
     let source: RateDataSource
     var burnTokensPerSecond: Double = 0   // last 30 min, for time-to-limit projection
     var planName: String? = nil           // detected from Claude Code credentials (e.g. "Max 20x")
+    var officialFetchedAt: Date? = nil    // when the official % was last read (to throttle keychain reads)
 
     static let placeholder = RateData(
         session: CategoryData(tokens: 240_000, cost: 1.20, resetsAt: Date().addingTimeInterval(3600), limitTokens: 1_000_000, limitKind: .typicalPeak),

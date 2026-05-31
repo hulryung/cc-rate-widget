@@ -77,6 +77,7 @@ private struct PersistedRate: Codable {
 
     var burnTokensPerSecond: Double?
     var planName: String?
+    var officialFetchedAt: Double?
 
     struct Cat: Codable {
         let tokens: Int
@@ -123,6 +124,7 @@ private struct PersistedRate: Codable {
         self.source = r.source.rawValue
         self.burnTokensPerSecond = r.burnTokensPerSecond
         self.planName = r.planName
+        self.officialFetchedAt = r.officialFetchedAt?.timeIntervalSince1970
     }
 
     func toRateData() -> RateData {
@@ -134,7 +136,8 @@ private struct PersistedRate: Codable {
             status: OverallStatus(rawValue: status) ?? .unknown,
             source: RateDataSource(rawValue: source) ?? .jsonl,
             burnTokensPerSecond: burnTokensPerSecond ?? 0,
-            planName: planName
+            planName: planName,
+            officialFetchedAt: officialFetchedAt.map(Date.init(timeIntervalSince1970:))
         )
     }
 }
