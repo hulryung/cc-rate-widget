@@ -112,10 +112,10 @@ private struct DashboardSection: View {
                 } else if let rate {
                     DashboardHeader(rate: rate)
                     HeroCard(label: "Weekly", systemImage: "calendar", cat: rate.weekly,
-                             burnPerSec: rate.burnTokensPerSecond)
+                             burnPerSec: rate.burnTokensPerSecond, plan: rate.planName)
                     HStack(spacing: 16) {
                         StatCard(label: "Session", sublabel: "5 hours", systemImage: "clock",
-                                 cat: rate.session, burnPerSec: rate.burnTokensPerSecond)
+                                 cat: rate.session, burnPerSec: rate.burnTokensPerSecond, plan: rate.planName)
                         StatCard(label: "Sonnet", sublabel: "7 days", systemImage: "cpu", cat: rate.weeklySonnet)
                     }
                 } else {
@@ -135,6 +135,13 @@ private struct DashboardHeader: View {
             Circle().fill(.green).frame(width: 8, height: 8)
             Text("Tracking local usage")
                 .font(.subheadline).foregroundStyle(.secondary)
+            if let plan = rate.planName {
+                Text(plan)
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 7).padding(.vertical, 2)
+                    .background(Capsule().fill(Color.accentColor.opacity(0.15)))
+                    .foregroundStyle(Color.accentColor)
+            }
             Spacer()
             Text("Updated \(rate.fetchedAt, style: .time)")
                 .font(.caption).foregroundStyle(.tertiary)
@@ -143,11 +150,14 @@ private struct DashboardHeader: View {
 }
 
 /// Caption under a usage bar, worded by what the denominator means.
-private func limitCaption(_ cat: CategoryData) -> String? {
+private func limitCaption(_ cat: CategoryData, plan: String? = nil) -> String? {
     guard let limit = cat.limitTokens, let kind = cat.limitKind, let u = cat.utilization else { return nil }
     switch kind {
-    case .userLimit:   return "\(UsageFormat.tokens(cat.tokens)) of \(UsageFormat.tokens(limit)) limit"
-    case .typicalPeak: return "\(Int(u * 100))% of your typical peak (\(UsageFormat.tokens(limit)))"
+    case .userLimit:
+        return "\(UsageFormat.tokens(cat.tokens)) of \(UsageFormat.tokens(limit)) limit"
+    case .typicalPeak:
+        let scope = plan.map { "your \($0) typical peak" } ?? "your typical peak"
+        return "\(Int(u * 100))% of \(scope) (\(UsageFormat.tokens(limit)))"
     }
 }
 
@@ -166,6 +176,7 @@ private struct HeroCard: View {
     let systemImage: String
     let cat: CategoryData
     var burnPerSec: Double = 0
+    var plan: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -193,7 +204,7 @@ private struct HeroCard: View {
             if cat.utilization != nil {
                 UsageBar(utilization: cat.utilization!, height: 16)
                 HStack {
-                    if let cap = limitCaption(cat) {
+                    if let cap = limitCaption(cat, plan: plan) {
                         Text(cap).font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -216,6 +227,7 @@ private struct StatCard: View {
     let systemImage: String
     let cat: CategoryData
     var burnPerSec: Double = 0
+    var plan: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -234,7 +246,7 @@ private struct StatCard: View {
             }
             if cat.utilization != nil {
                 UsageBar(utilization: cat.utilization!, height: 10)
-                if let cap = limitCaption(cat) {
+                if let cap = limitCaption(cat, plan: plan) {
                     Text(cap).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                 }
                 if let eta = etaText(cat, burnPerSec: burnPerSec) {

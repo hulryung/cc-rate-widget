@@ -103,7 +103,8 @@ final class AggregationCoordinator: ObservableObject {
             fetchedAt: now,
             status: .active,
             source: .jsonl,
-            burnTokensPerSecond: snap.lastHalfHourTokensPerSecond
+            burnTokensPerSecond: snap.lastHalfHourTokensPerSecond,
+            planName: ClaudePlan.detect()
         )
 
         try store.writeRate(rate)

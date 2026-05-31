@@ -81,6 +81,7 @@ struct RateData {
     let status: OverallStatus
     let source: RateDataSource
     var burnTokensPerSecond: Double = 0   // last 30 min, for time-to-limit projection
+    var planName: String? = nil           // detected from Claude Code credentials (e.g. "Max 20x")
 
     static let placeholder = RateData(
         session: CategoryData(tokens: 240_000, cost: 1.20, resetsAt: Date().addingTimeInterval(3600), limitTokens: 1_000_000, limitKind: .typicalPeak),
@@ -89,7 +90,8 @@ struct RateData {
         fetchedAt: Date(),
         status: .active,
         source: .jsonl,
-        burnTokensPerSecond: 1800
+        burnTokensPerSecond: 1800,
+        planName: "Max 20x"
     )
 }
 
