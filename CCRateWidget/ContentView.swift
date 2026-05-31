@@ -133,7 +133,7 @@ private struct DashboardHeader: View {
     var body: some View {
         HStack(spacing: 8) {
             Circle().fill(.green).frame(width: 8, height: 8)
-            Text("Tracking local usage")
+            Text(rate.source == .oauth ? "Official usage (matches /status)" : "Tracking local usage")
                 .font(.subheadline).foregroundStyle(.secondary)
             if let plan = rate.planName {
                 Text(plan)
@@ -151,11 +151,15 @@ private struct DashboardHeader: View {
 
 /// Caption under a usage bar, worded by what the denominator means.
 private func limitCaption(_ cat: CategoryData, plan: String? = nil) -> String? {
-    guard let limit = cat.limitTokens, let kind = cat.limitKind, let u = cat.utilization else { return nil }
+    guard let kind = cat.limitKind, let u = cat.utilization else { return nil }
     switch kind {
+    case .official:
+        return plan.map { "official · \($0)" } ?? "official Anthropic usage"
     case .userLimit:
+        guard let limit = cat.limitTokens else { return nil }
         return "\(UsageFormat.tokens(cat.tokens)) of \(UsageFormat.tokens(limit)) limit"
     case .typicalPeak:
+        guard let limit = cat.limitTokens else { return nil }
         let scope = plan.map { "your \($0) typical peak" } ?? "your typical peak"
         return "\(Int(u * 100))% of \(scope) (\(UsageFormat.tokens(limit)))"
     }

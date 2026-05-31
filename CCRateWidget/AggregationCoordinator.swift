@@ -89,20 +89,32 @@ final class AggregationCoordinator: ObservableObject {
         else if let p = snap.typicalFiveHourPeak { sessionLimit = p; sessionKind = .typicalPeak }
         else { sessionLimit = nil; sessionKind = nil }
 
+        var session = cat(tokens: snap.fiveHourTokens, cost: snap.fiveHourCost,
+                          earliest: snap.earliestInFiveHour, window: 5 * 3600,
+                          limit: sessionLimit, kind: sessionKind)
+        var weekly = cat(tokens: snap.sevenDayTokens, cost: snap.sevenDayCost,
+                         earliest: snap.earliestInSevenDay, window: 7 * 86400,
+                         limit: weeklyCap, kind: weeklyCap != nil ? .userLimit : nil)
+        var sonnet = cat(tokens: snap.sevenDaySonnetTokens, cost: 0,
+                         earliest: snap.earliestInSevenDay, window: 7 * 86400,
+                         limit: nil, kind: nil)
+
+        // Official Anthropic % (opt-in): overlays the real utilization from Claude Code's
+        // keychain token, so the bars match `/status`. Falls back to local on any failure.
+        var source: RateDataSource = .jsonl
+        let oauthOn = (suite?.bool(forKey: "oauthEnabled")) ?? false
+        if oauthOn, let off = OfficialUsage.fetch() {
+            session = session.withOfficial(off.fiveHour, resetsAt: off.fiveHourResetsAt)
+            weekly  = weekly.withOfficial(off.sevenDay, resetsAt: off.sevenDayResetsAt)
+            sonnet  = sonnet.withOfficial(off.sevenDaySonnet, resetsAt: off.sevenDayResetsAt)
+            source  = .oauth
+        }
+
         let rate = RateData(
-            session:      cat(tokens: snap.fiveHourTokens, cost: snap.fiveHourCost,
-                              earliest: snap.earliestInFiveHour, window: 5 * 3600,
-                              limit: sessionLimit, kind: sessionKind),
-            weekly:       cat(tokens: snap.sevenDayTokens, cost: snap.sevenDayCost,
-                              earliest: snap.earliestInSevenDay, window: 7 * 86400,
-                              limit: weeklyCap, kind: weeklyCap != nil ? .userLimit : nil),
-            // Sonnet cost isn't tracked per-window yet; tokens are accurate. No separate cap.
-            weeklySonnet: cat(tokens: snap.sevenDaySonnetTokens, cost: 0,
-                              earliest: snap.earliestInSevenDay, window: 7 * 86400,
-                              limit: nil, kind: nil),
+            session: session, weekly: weekly, weeklySonnet: sonnet,
             fetchedAt: now,
             status: .active,
-            source: .jsonl,
+            source: source,
             burnTokensPerSecond: snap.lastHalfHourTokensPerSecond,
             planName: ClaudePlan.detect()
         )

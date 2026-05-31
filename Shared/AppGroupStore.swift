@@ -84,15 +84,17 @@ private struct PersistedRate: Codable {
         let resetsAt: Double?
         var limitTokens: Int?
         var limitKind: String?
+        var officialUtilization: Double?
 
         init(_ c: CategoryData) {
             self.tokens = c.tokens; self.cost = c.cost
             self.resetsAt = c.resetsAt?.timeIntervalSince1970
             self.limitTokens = c.limitTokens
             self.limitKind = c.limitKind?.rawValue
+            self.officialUtilization = c.officialUtilization
         }
 
-        private enum CodingKeys: String, CodingKey { case tokens, cost, resetsAt, limitTokens, limitKind }
+        private enum CodingKeys: String, CodingKey { case tokens, cost, resetsAt, limitTokens, limitKind, officialUtilization }
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             self.tokens = try c.decode(Int.self, forKey: .tokens)
@@ -100,13 +102,15 @@ private struct PersistedRate: Codable {
             self.resetsAt = try c.decodeIfPresent(Double.self, forKey: .resetsAt)
             self.limitTokens = try c.decodeIfPresent(Int.self, forKey: .limitTokens)
             self.limitKind = try c.decodeIfPresent(String.self, forKey: .limitKind)
+            self.officialUtilization = try c.decodeIfPresent(Double.self, forKey: .officialUtilization)
         }
 
         var category: CategoryData {
             CategoryData(tokens: tokens, cost: cost,
                          resetsAt: resetsAt.map(Date.init(timeIntervalSince1970:)),
                          limitTokens: limitTokens,
-                         limitKind: limitKind.flatMap(LimitKind.init(rawValue:)))
+                         limitKind: limitKind.flatMap(LimitKind.init(rawValue:)),
+                         officialUtilization: officialUtilization)
         }
     }
 

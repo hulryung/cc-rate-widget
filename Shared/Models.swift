@@ -48,28 +48,39 @@ struct ExtraUsage: Codable {
 enum LimitKind: String {
     case userLimit     // user typed a token cap in Settings
     case typicalPeak   // P90 of the user's own historical 5-hour blocks (self-calibrated)
+    case official      // Anthropic's real utilization (matches Claude Code /status)
 }
 
 /// Absolute usage for one rolling window. JSONL gives accurate token counts and cost.
 struct CategoryData {
     let tokens: Int
-    let cost: Double         // USD
-    let resetsAt: Date?      // when the window's earliest event ages out
-    var limitTokens: Int?    // denominator for the percentage; nil = no percentage
+    let cost: Double          // USD
+    let resetsAt: Date?       // window reset time
+    var limitTokens: Int?     // token-based denominator; nil = none
     var limitKind: LimitKind?
+    var officialUtilization: Double?   // when set, this IS the percentage (from Anthropic)
 
-    init(tokens: Int, cost: Double, resetsAt: Date?, limitTokens: Int? = nil, limitKind: LimitKind? = nil) {
+    init(tokens: Int, cost: Double, resetsAt: Date?,
+         limitTokens: Int? = nil, limitKind: LimitKind? = nil, officialUtilization: Double? = nil) {
         self.tokens = tokens
         self.cost = cost
         self.resetsAt = resetsAt
         self.limitTokens = limitTokens
         self.limitKind = limitKind
+        self.officialUtilization = officialUtilization
     }
 
-    /// 0…1+ when a limit is set, else nil.
+    /// Official % wins; otherwise tokens / token-limit; otherwise nil.
     var utilization: Double? {
+        if let officialUtilization { return officialUtilization }
         guard let limitTokens, limitTokens > 0 else { return nil }
         return Double(tokens) / Double(limitTokens)
+    }
+
+    /// Overlay Anthropic's official utilization, keeping the locally-measured tokens/cost.
+    func withOfficial(_ util: Double, resetsAt: Date?) -> CategoryData {
+        CategoryData(tokens: tokens, cost: cost, resetsAt: resetsAt ?? self.resetsAt,
+                     limitTokens: nil, limitKind: .official, officialUtilization: util)
     }
 }
 

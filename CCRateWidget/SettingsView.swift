@@ -41,12 +41,12 @@ struct SettingsView: View {
             }
 
             Section {
-                Toggle("Pull official quota when available", isOn: $store.oauthEnabled)
-                    .disabled(true)
+                Toggle("Show official usage % (matches Claude /status)", isOn: $store.oauthEnabled)
+                    .onChange(of: store.oauthEnabled) { _, _ in AggregationCoordinator.shared.runOnce() }
             } header: {
-                Text("Anthropic OAuth")
+                Text("Official usage")
             } footer: {
-                Text("Coming in a later release. Inert for now — the widget runs entirely on local data.")
+                Text("Reads Claude Code's own login from your macOS keychain (you'll be asked to allow access once) and shows Anthropic's real utilization — the same numbers as /status. When off, the widget uses only local logs. Note: third-party use of the login is discouraged by Anthropic's terms.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
 

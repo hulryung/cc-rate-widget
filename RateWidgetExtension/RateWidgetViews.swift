@@ -221,7 +221,7 @@ struct SourceBadge: View {
     private var label: String {
         switch source {
         case .jsonl: return "LOCAL"
-        case .oauth: return "OAUTH"
+        case .oauth: return "OFFICIAL"
         case .hybrid: return "HYBRID"
         case .partial: return "LEARNING"
         case .noLocalData: return "SETUP"
