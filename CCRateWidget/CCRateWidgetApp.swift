@@ -13,6 +13,12 @@ struct CCRateWidgetApp: App {
                 .task { await requestNotificationsIfNeeded() }
         }
         .defaultSize(width: 760, height: 520)
+
+        // A real Settings scene, so ⌘, works — the most reflexive shortcut on macOS.
+        // Previously settings were a third sidebar row and unreachable by keyboard.
+        Settings {
+            SettingsView().frame(width: 480)
+        }
     }
 
     private func requestNotificationsIfNeeded() async {

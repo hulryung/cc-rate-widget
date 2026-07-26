@@ -22,9 +22,9 @@ struct SettingsView: View {
                     limitField($store.weeklyLimitMillions)
                 }
             } header: {
-                Text("Percentage (optional)")
+                Text("Usage limits")
             } footer: {
-                Text("Enter your plan's token limits (in millions) to show a percentage. Leave at 0 to show absolute usage only. Local logs can't read Anthropic's official quota %, so this is measured against the limit you provide.")
+                Text("Set your plan's limits to see a percentage. 0 shows absolute usage only.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             .onChange(of: store.fiveHourLimitMillions) { _, _ in AggregationCoordinator.shared.runOnce() }
@@ -41,12 +41,19 @@ struct SettingsView: View {
             }
 
             Section {
-                Toggle("Show official usage % (matches Claude /status)", isOn: $store.oauthEnabled)
+                Toggle("Show official usage %", isOn: $store.oauthEnabled)
                     .onChange(of: store.oauthEnabled) { _, _ in AggregationCoordinator.shared.runOnce() }
+
+                // Promoted out of the footer: as gray body text at the end of four
+                // sentences, the one sentence with real consequences went unread.
+                Label("Anthropic's terms discourage third-party use of this login.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
             } header: {
                 Text("Official usage")
             } footer: {
-                Text("Reads Claude Code's own login from your macOS keychain (you'll be asked to allow access once) and shows Anthropic's real utilization — the same numbers as /status. When off, the widget uses only local logs. Note: third-party use of the login is discouraged by Anthropic's terms.")
+                Text("Reads Claude Code's login from your keychain to show the same percentages as /status. When off, only local logs are used.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
 

@@ -31,15 +31,25 @@ final class MenuBarMode {
     private func update(_ rate: RateData?) {
         guard let item = statusItem, let button = item.button else { return }
         if let rate, rate.status != .noLocalData {
-            // Menu-bar title: compact 5h/7d percentages, e.g. "2%/22%".
-            var parts: [String] = []
-            if let u = rate.session.utilization { parts.append("\(Int(u * 100))%") }
-            if let u = rate.weekly.utilization  { parts.append("\(Int(u * 100))%") }
-            button.title = parts.isEmpty
-                ? " \(UsageFormat.tokens(rate.session.tokens))"   // no %: fall back to tokens
-                : " " + parts.joined(separator: "/")
+            // One labelled number. "2%/22%" was two unlabelled figures the user had to
+            // remember the order of; the weekly window is the one worth a glance.
+            if let u = rate.weekly.utilization {
+                button.attributedTitle = NSAttributedString(
+                    string: " \(Int(u * 100))%",
+                    attributes: [
+                        .foregroundColor: UsageLevel(u).nsColor,
+                        .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold),
+                    ])
+            } else {
+                button.attributedTitle = NSAttributedString(
+                    string: " \(UsageFormat.tokens(rate.weekly.tokens))",
+                    attributes: [
+                        .foregroundColor: NSColor.labelColor,
+                        .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular),
+                    ])
+            }
         } else {
-            button.title = " Claude"
+            button.attributedTitle = NSAttributedString(string: "")
         }
         item.menu = buildMenu(rate)
     }
@@ -72,28 +82,47 @@ final class MenuBarMode {
         return menu
     }
 
+    /// Columns are aligned with real tab stops rather than padded spaces, so the
+    /// percentages and token counts line up regardless of digit count.
     private func usageItem(_ label: String, _ cat: CategoryData) -> NSMenuItem {
-        let font = NSFont.menuFont(ofSize: 13)
-        let bold = NSFont.boldSystemFont(ofSize: 13)
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
+        let bold = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
+
+        let style = NSMutableParagraphStyle()
+        style.tabStops = [
+            NSTextTab(textAlignment: .right, location: 116),   // percentage
+            NSTextTab(textAlignment: .right, location: 186),   // tokens
+            NSTextTab(textAlignment: .right, location: 246),   // cost
+        ]
+
         let s = NSMutableAttributedString()
-        s.append(NSAttributedString(string: "\(label)   ",
+        s.append(NSAttributedString(string: label,
                                     attributes: [.foregroundColor: NSColor.secondaryLabelColor, .font: font]))
+
         if let u = cat.utilization {
-            s.append(NSAttributedString(string: "\(Int(u * 100))%  ",
-                                        attributes: [.foregroundColor: pctColor(u), .font: bold]))
-        }
-        s.append(NSAttributedString(string: "\(UsageFormat.tokens(cat.tokens)) tok",
-                                    attributes: [.foregroundColor: NSColor.labelColor, .font: font]))
-        var tail = ""
-        if cat.cost > 0 { tail += "  ·  \(UsageFormat.cost(cat.cost))" }
-        if let reset = cat.resetsAt { tail += "  ·  resets in \(UsageFormat.remainingCoarse(until: reset))" }
-        if !tail.isEmpty {
-            s.append(NSAttributedString(string: tail,
+            s.append(NSAttributedString(string: "\t\(Int(u * 100))%",
+                                        attributes: [.foregroundColor: UsageLevel(u).nsColor, .font: bold]))
+        } else {
+            s.append(NSAttributedString(string: "\t—",
                                         attributes: [.foregroundColor: NSColor.tertiaryLabelColor, .font: font]))
         }
+
+        s.append(NSAttributedString(string: "\t\(UsageFormat.tokens(cat.tokens)) tok",
+                                    attributes: [.foregroundColor: NSColor.labelColor, .font: font]))
+
+        if cat.cost > 0 {
+            s.append(NSAttributedString(string: "\t\(UsageFormat.cost(cat.cost))",
+                                        attributes: [.foregroundColor: NSColor.secondaryLabelColor, .font: font]))
+        }
+
+        s.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: s.length))
+
         let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         item.attributedTitle = s
         item.isEnabled = true
+        if let reset = cat.resetsAt {
+            item.toolTip = "Resets \(UsageFormat.resetMoment(reset)) · \(UsageFormat.remainingCoarse(until: reset)) left"
+        }
         return item
     }
 
@@ -105,12 +134,6 @@ final class MenuBarMode {
         ])
         item.isEnabled = true
         return item
-    }
-
-    private func pctColor(_ u: Double) -> NSColor {
-        if u >= 1.0 { return .systemRed }
-        if u >= 0.8 { return .systemOrange }
-        return .systemGreen
     }
 
     // MARK: - Actions
