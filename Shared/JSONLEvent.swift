@@ -21,16 +21,31 @@ struct JSONLEvent {
         guard let msg = raw["message"] as? [String: Any],
               let model = msg["model"] as? String,
               let usage = msg["usage"] as? [String: Any] else { return nil }
+        let writes = cacheWrites(usage)
         let u = TokenUsage(
-            input:      (usage["input_tokens"] as? Int) ?? 0,
-            output:     (usage["output_tokens"] as? Int) ?? 0,
-            cacheWrite: (usage["cache_creation_input_tokens"] as? Int) ?? 0,
-            cacheRead:  (usage["cache_read_input_tokens"] as? Int) ?? 0
+            input:        (usage["input_tokens"] as? Int) ?? 0,
+            output:       (usage["output_tokens"] as? Int) ?? 0,
+            cacheWrite5m: writes.fiveMinute,
+            cacheWrite1h: writes.oneHour,
+            cacheRead:    (usage["cache_read_input_tokens"] as? Int) ?? 0
         )
         let messageID = msg["id"] as? String
         let requestID = (raw["requestId"] as? String) ?? (raw["request_id"] as? String)
         let key = messageID.map { "\($0):\(requestID ?? "")" }
         return JSONLEvent(timestamp: date, cwd: cwd, model: model, usage: u, dedupeKey: key)
+    }
+
+    /// Splits cache-creation tokens by TTL. `cache_creation_input_tokens` is the total
+    /// Anthropic bills on; the `cache_creation` object only says how that total divides
+    /// between the 1-hour and 5-minute buckets (they're priced 2x and 1.25x input).
+    /// The total stays authoritative — the split is clamped to it, so a missing or
+    /// inconsistent breakdown can never invent or drop billable tokens.
+    private static func cacheWrites(_ usage: [String: Any]) -> (fiveMinute: Int, oneHour: Int) {
+        let total = max(0, (usage["cache_creation_input_tokens"] as? Int) ?? 0)
+        let breakdown = usage["cache_creation"] as? [String: Any]
+        let reported1h = max(0, (breakdown?["ephemeral_1h_input_tokens"] as? Int) ?? 0)
+        let oneHour = min(reported1h, total)
+        return (fiveMinute: total - oneHour, oneHour: oneHour)
     }
 
     private static let isoWithFractions: ISO8601DateFormatter = {

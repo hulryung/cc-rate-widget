@@ -3,6 +3,13 @@ import Foundation
 final class AppGroupStore {
     static let appGroupID = "group.com.dkkang.cc-rate-widget"
 
+    /// Bump whenever `StoredEvent`'s shape, the parsing of a JSONL line, or the cost
+    /// model changes. Stored events keep a precomputed `cost`, so such a fix cannot
+    /// repair them in place — the aggregator reacts to a version change by discarding
+    /// the store and re-reading from source. v2: TTL-aware cache-write pricing and
+    /// Claude 5 model rates.
+    static let currentSchemaVersion = 2
+
     private let containerURL: URL
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
@@ -29,6 +36,7 @@ final class AppGroupStore {
     private var projectsURL: URL { containerURL.appendingPathComponent("projects.json") }
     private var offsetsURL:  URL { containerURL.appendingPathComponent("offsets.json") }
     private var eventsURL:   URL { containerURL.appendingPathComponent("events.json") }
+    private var schemaURL:   URL { containerURL.appendingPathComponent("schema.json") }
 
     // MARK: - Generic read/write
     private func read<T: Decodable>(_ url: URL, as type: T.Type) throws -> T? {
@@ -63,7 +71,18 @@ final class AppGroupStore {
     /// double-counting. Aggregator ages out events older than the 7-day window.
     func readEvents()  throws -> [String: [StoredEvent]]  { (try read(eventsURL, as: [String: [StoredEvent]].self)) ?? [:] }
     func writeEvents(_ value: [String: [StoredEvent]]) throws { try atomicWrite(value, to: eventsURL) }
+
+    /// Version of the data already on disk. A store written before versioning existed —
+    /// or one that fails to decode — reads as 1, which forces the v2 rescan.
+    func readSchemaVersion() -> Int {
+        ((try? read(schemaURL, as: SchemaMarker.self)) ?? nil)?.version ?? 1
+    }
+    func writeSchemaVersion(_ version: Int) throws {
+        try atomicWrite(SchemaMarker(version: version), to: schemaURL)
+    }
 }
+
+private struct SchemaMarker: Codable { let version: Int }
 
 // MARK: - On-disk RateData representation (stable absolute usage)
 

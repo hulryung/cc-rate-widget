@@ -75,6 +75,19 @@ final class JSONLAggregator {
         let files = try listJsonlFiles()
         let currentPaths = Set(files.map(\.path))
 
+        // Schema migration: stored events carry a precomputed cost, so a pricing or
+        // parsing fix can't repair them in place. Drop the store and re-read from source.
+        // A file untouched since the cutoff can only contain events that have already
+        // aged out, so seek past it rather than re-parsing hundreds of MB of history.
+        if store.readSchemaVersion() != AppGroupStore.currentSchemaVersion {
+            events.removeAll()
+            offsets.removeAll()
+            for url in files where modifiedAt(at: url.path).map({ $0 < cutoff }) ?? false {
+                offsets[url.path] = fileSize(at: url.path)
+            }
+            try? store.writeSchemaVersion(AppGroupStore.currentSchemaVersion)
+        }
+
         // Orphan cleanup: a file that no longer exists keeps no events or offset.
         for key in events.keys where !currentPaths.contains(key) { events.removeValue(forKey: key) }
         for key in offsets.keys where !currentPaths.contains(key) { offsets.removeValue(forKey: key) }
@@ -204,6 +217,14 @@ final class JSONLAggregator {
 
     private func fileSize(at path: String) -> UInt64 {
         (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? UInt64) ?? 0
+    }
+
+    /// Last-write time as epoch seconds. nil when unreadable, which callers treat as
+    /// "can't prove it's stale" and re-read the file.
+    private func modifiedAt(at path: String) -> Double? {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+              let date = attrs[.modificationDate] as? Date else { return nil }
+        return date.timeIntervalSince1970
     }
 
     private func listJsonlFiles() throws -> [URL] {

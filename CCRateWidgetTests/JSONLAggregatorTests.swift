@@ -48,6 +48,67 @@ final class JSONLAggregatorTests: XCTestCase {
         XCTAssertEqual(snapshot.fiveHourTokens, 150)
     }
 
+    // MARK: - Schema migration
+
+    /// Stored events carry a precomputed cost, so a pricing fix can't repair them in
+    /// place — a version bump has to force them to be re-read from source. This is what
+    /// repairs already-ingested events after the Claude 5 pricing fix.
+    func test_aggregate_schemaBump_recomputesStoredCosts() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60))
+        writeFile("p/s.jsonl", assistantLine(ts: ts, cwd: "/p", model: "claude-opus-4-8",
+                                             inTok: 1_000_000, outTok: 0) + "\n")
+
+        // Simulate a store written by the old build: correct offsets, but a cost of 0
+        // baked in (which is exactly what an unpriced model produced).
+        _ = try aggregator.aggregate(now: now)
+        var events = try store.readEvents()
+        let path = try XCTUnwrap(events.keys.first)
+        events[path] = events[path]!.map {
+            StoredEvent(t: $0.t, tokens: $0.tokens, sonnet: $0.sonnet, cost: 0,
+                        project: $0.project, id: $0.id)
+        }
+        try store.writeEvents(events)
+        try store.writeSchemaVersion(1)
+
+        // Without a rescan the stale zero would survive; the bump must re-read the file.
+        let snap = try JSONLAggregator(rootDir: rootDir, store: store).aggregate(now: now)
+        XCTAssertEqual(snap.fiveHourCost, 5.0, accuracy: 0.0001)
+        XCTAssertEqual(snap.fiveHourTokens, 1_000_000)
+        XCTAssertEqual(store.readSchemaVersion(), AppGroupStore.currentSchemaVersion)
+    }
+
+    /// The rescan must not double-count: re-reading a file whose events are already
+    /// stored has to replace them, not append to them.
+    func test_aggregate_schemaBump_doesNotDoubleCount() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60))
+        writeFile("p/s.jsonl", assistantLine(ts: ts, cwd: "/p", model: "claude-opus-4-8",
+                                             inTok: 100, outTok: 50) + "\n")
+
+        let first = try aggregator.aggregate(now: now)
+        try store.writeSchemaVersion(1)
+        let afterMigration = try JSONLAggregator(rootDir: rootDir, store: store).aggregate(now: now)
+
+        XCTAssertEqual(afterMigration.fiveHourTokens, first.fiveHourTokens)
+        XCTAssertEqual(afterMigration.fiveHourCost, first.fiveHourCost, accuracy: 0.0001)
+    }
+
+    /// Once migrated, ordinary ticks must not keep rescanning from byte 0.
+    func test_aggregate_schemaVersionPersists_soMigrationRunsOnce() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60))
+        writeFile("p/s.jsonl", assistantLine(ts: ts, cwd: "/p", model: "claude-opus-4-8",
+                                             inTok: 100, outTok: 50) + "\n")
+
+        _ = try aggregator.aggregate(now: now)
+        XCTAssertEqual(store.readSchemaVersion(), AppGroupStore.currentSchemaVersion)
+
+        let offsetsAfterFirst = try store.readOffsets()
+        _ = try aggregator.aggregate(now: now)
+        XCTAssertEqual(try store.readOffsets(), offsetsAfterFirst)
+    }
+
     func test_aggregate_corruptLine_skipped() throws {
         let now = Date()
         let good = assistantLine(ts: AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-60)),
