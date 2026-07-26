@@ -12,7 +12,7 @@
 <!-- Open Graph -->
 <meta property="og:title" content="{{ page.title | default: site.title }}">
 <meta property="og:description" content="{{ page.description | default: site.description }}">
-<meta property="og:image" content="{{ site.url }}{{ site.baseurl }}/assets/screenshots/widget-medium.png">
+<meta property="og:image" content="{{ site.url }}{{ site.baseurl }}/assets/og-image.png">
 <meta property="og:url" content="{{ site.url }}{{ site.baseurl }}{{ page.url }}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="{{ site.title }}">
@@ -21,7 +21,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ page.title | default: site.title }}">
 <meta name="twitter:description" content="{{ page.description | default: site.description }}">
-<meta name="twitter:image" content="{{ site.url }}{{ site.baseurl }}/assets/screenshots/widget-medium.png">
+<meta name="twitter:image" content="{{ site.url }}{{ site.baseurl }}/assets/og-image.png">
 
 <!-- Favicon (inline SVG matching nav icon orange gradient) -->
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%23e8923a'/><stop offset='100%25' stop-color='%23d97706'/></linearGradient></defs><rect width='16' height='16' rx='3' fill='url(%23g)'/><rect x='2' y='4' width='12' height='8' rx='2' fill='none' stroke='%23000' stroke-width='1.5'/><line x1='5' y1='8' x2='11' y2='8' stroke='%23000' stroke-width='1.5'/></svg>">
@@ -451,6 +451,19 @@ nav .container {
 /* ---- Rate Categories Visual ---- */
 .rate-categories {
   padding: 120px 0;
+}
+
+kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  margin: 0 1px;
+  font-family: inherit;
+  font-size: 0.85em;
+  line-height: 1.4;
+  color: var(--text-secondary, #666);
+  background: rgba(127, 127, 127, 0.12);
+  border-radius: 4px;
+  border: 0.5px solid rgba(127, 127, 127, 0.25);
 }
 
 .widget-frame {

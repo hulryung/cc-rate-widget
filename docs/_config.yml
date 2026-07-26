@@ -1,5 +1,5 @@
 title: Claude Rate Widget
-description: Free, open-source macOS widget to track your Claude Code rate limits
+description: Free, open-source macOS app to track your Claude Code token usage and cost
 url: https://rate.huconn.xyz
 baseurl: ""
 theme: null
