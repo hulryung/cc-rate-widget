@@ -31,12 +31,18 @@ struct SettingsView: View {
             .onChange(of: store.weeklyLimitMillions) { _, _ in AggregationCoordinator.shared.runOnce() }
 
             Section {
-                Toggle("Run in menu bar", isOn: $store.menuBarEnabled)
-                    .onChange(of: store.menuBarEnabled) { _, _ in showRelaunchPrompt = true }
+                Toggle("Show in menu bar", isOn: $store.menuBarEnabled)
+                    .onChange(of: store.menuBarEnabled) { _, on in
+                        if on { MenuBarMode.shared.install() } else { MenuBarMode.shared.remove() }
+                    }
+                Toggle("Global shortcut (⌥⌘U)", isOn: $store.hotkeyEnabled)
+                    .onChange(of: store.hotkeyEnabled) { _, on in
+                        if on { UsageHUD.shared.registerHotKey() } else { UsageHUD.shared.unregisterHotKey() }
+                    }
             } header: {
-                Text("Background")
+                Text("Quick access")
             } footer: {
-                Text("Keeps the app alive so it can refresh and (later) fire notifications even when the window is closed.")
+                Text("The menu bar shows your weekly percentage; click it for the full summary. The shortcut shows the same summary anywhere, including over full-screen apps, and dismisses itself.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
 

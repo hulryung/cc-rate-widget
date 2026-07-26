@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             AggregationCoordinator.shared.start()
             MenuBarMode.shared.installIfEnabled()
+            UsageHUD.shared.registerHotKeyIfEnabled()
         }
     }
 }

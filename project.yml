@@ -31,29 +31,6 @@ targets:
         CODE_SIGN_ENTITLEMENTS: CCRateWidget/CCRateWidget.entitlements
         ENABLE_APP_SANDBOX: false
         INFOPLIST_FILE: CCRateWidget/Info.plist
-        PROVISIONING_PROFILE_SPECIFIER: "Claude Rate Widget Developer ID"
-    dependencies:
-      - target: RateWidgetExtension
-
-  RateWidgetExtension:
-    type: app-extension
-    platform: macOS
-    product: RateWidgetExtension.appex
-    sources:
-      - path: RateWidgetExtension
-      - path: Shared
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dkkang.cc-rate-widget.RateWidgetExtension
-        PRODUCT_NAME: RateWidgetExtension
-        CODE_SIGN_ENTITLEMENTS: RateWidgetExtension/RateWidgetExtension.entitlements
-        ENABLE_APP_SANDBOX: true
-        INFOPLIST_FILE: RateWidgetExtension/Info.plist
-        PROVISIONING_PROFILE_SPECIFIER: "Claude Rate Widget Extension Developer ID"
-        LD_RUNPATH_SEARCH_PATHS:
-          - "$(inherited)"
-          - "@executable_path/../Frameworks"
-          - "@executable_path/../../../../Frameworks"
 
   CCRateWidgetTests:
     type: bundle.unit-test
@@ -76,7 +53,6 @@ schemes:
     build:
       targets:
         CCRateWidget: all
-        RateWidgetExtension: all
         CCRateWidgetTests: all
     test:
       targets:

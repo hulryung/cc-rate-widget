@@ -14,7 +14,7 @@ enum ClaudePlan {
     private static let cachedTierKey = "claudeRateLimitTier"
 
     private static var sharedDefaults: UserDefaults? {
-        UserDefaults(suiteName: AppGroupStore.appGroupID)
+        UserDefaults.standard
     }
 
     /// Maps a `rateLimitTier` string (e.g. "default_claude_max_20x") to a friendly name.

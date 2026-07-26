@@ -53,12 +53,12 @@ struct AggregationSnapshot {
 
 final class JSONLAggregator {
     private let rootDir: URL
-    private let store: AppGroupStore
+    private let store: LocalStore
     private let fiveHours: TimeInterval = 5 * 3600
     private let sevenDays: TimeInterval = 7 * 86400
     private let halfHour: TimeInterval = 1800
 
-    init(rootDir: URL, store: AppGroupStore) {
+    init(rootDir: URL, store: LocalStore) {
         self.rootDir = rootDir
         self.store = store
     }
@@ -79,13 +79,13 @@ final class JSONLAggregator {
         // parsing fix can't repair them in place. Drop the store and re-read from source.
         // A file untouched since the cutoff can only contain events that have already
         // aged out, so seek past it rather than re-parsing hundreds of MB of history.
-        if store.readSchemaVersion() != AppGroupStore.currentSchemaVersion {
+        if store.readSchemaVersion() != LocalStore.currentSchemaVersion {
             events.removeAll()
             offsets.removeAll()
             for url in files where modifiedAt(at: url.path).map({ $0 < cutoff }) ?? false {
                 offsets[url.path] = fileSize(at: url.path)
             }
-            try? store.writeSchemaVersion(AppGroupStore.currentSchemaVersion)
+            try? store.writeSchemaVersion(LocalStore.currentSchemaVersion)
         }
 
         // Orphan cleanup: a file that no longer exists keeps no events or offset.

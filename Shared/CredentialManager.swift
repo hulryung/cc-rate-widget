@@ -14,8 +14,8 @@ final class CredentialManager {
     private init() {}
 
     // MARK: - Shared Storage via App Group UserDefaults
-    private static let appGroupID = "group.com.dkkang.cc-rate-widget"
-    private let defaults = UserDefaults(suiteName: appGroupID)!
+    
+    private let defaults = UserDefaults.standard
 
     // MARK: - Credential Storage
 

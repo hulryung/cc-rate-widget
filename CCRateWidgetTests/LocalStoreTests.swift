@@ -1,15 +1,15 @@
 import XCTest
 
-final class AppGroupStoreTests: XCTestCase {
+final class LocalStoreTests: XCTestCase {
     var tmpDir: URL!
-    var store: AppGroupStore!
+    var store: LocalStore!
 
     override func setUp() {
         super.setUp()
         tmpDir = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("AppGroupStoreTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("LocalStoreTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
-        store = AppGroupStore(containerURL: tmpDir)
+        store = LocalStore(containerURL: tmpDir)
     }
 
     override func tearDown() {

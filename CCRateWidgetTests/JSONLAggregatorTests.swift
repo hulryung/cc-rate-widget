@@ -3,7 +3,7 @@ import XCTest
 final class JSONLAggregatorTests: XCTestCase {
     var rootDir: URL!
     var storeDir: URL!
-    var store: AppGroupStore!
+    var store: LocalStore!
     var aggregator: JSONLAggregator!
 
     override func setUp() {
@@ -12,7 +12,7 @@ final class JSONLAggregatorTests: XCTestCase {
         storeDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("agg-store-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: rootDir,  withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: storeDir, withIntermediateDirectories: true)
-        store = AppGroupStore(containerURL: storeDir)
+        store = LocalStore(containerURL: storeDir)
         aggregator = JSONLAggregator(rootDir: rootDir, store: store)
     }
     override func tearDown() {
@@ -75,7 +75,7 @@ final class JSONLAggregatorTests: XCTestCase {
         let snap = try JSONLAggregator(rootDir: rootDir, store: store).aggregate(now: now)
         XCTAssertEqual(snap.fiveHourCost, 5.0, accuracy: 0.0001)
         XCTAssertEqual(snap.fiveHourTokens, 1_000_000)
-        XCTAssertEqual(store.readSchemaVersion(), AppGroupStore.currentSchemaVersion)
+        XCTAssertEqual(store.readSchemaVersion(), LocalStore.currentSchemaVersion)
     }
 
     /// The rescan must not double-count: re-reading a file whose events are already
@@ -102,7 +102,7 @@ final class JSONLAggregatorTests: XCTestCase {
                                              inTok: 100, outTok: 50) + "\n")
 
         _ = try aggregator.aggregate(now: now)
-        XCTAssertEqual(store.readSchemaVersion(), AppGroupStore.currentSchemaVersion)
+        XCTAssertEqual(store.readSchemaVersion(), LocalStore.currentSchemaVersion)
 
         let offsetsAfterFirst = try store.readOffsets()
         _ = try aggregator.aggregate(now: now)

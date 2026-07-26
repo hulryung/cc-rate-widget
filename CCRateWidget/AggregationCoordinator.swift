@@ -49,7 +49,7 @@ final class AggregationCoordinator: ObservableObject {
     }
 
     private nonisolated func tick() throws -> RateData {
-        let store = AppGroupStore.shared
+        let store = LocalStore.shared
         let root  = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude/projects", isDirectory: true)
 
@@ -68,9 +68,9 @@ final class AggregationCoordinator: ObservableObject {
         try store.writeProjects(snap.projects)
 
         // Optional user-entered caps (millions of tokens; 0 = unset → no percentage).
-        let suite = UserDefaults(suiteName: AppGroupStore.appGroupID)
+        let suite = UserDefaults.standard
         func cap(_ key: String) -> Int? {
-            let m = suite?.double(forKey: key) ?? 0
+            let m = suite.double(forKey: key)
             return m > 0 ? Int(m * 1_000_000) : nil
         }
         let fiveHourCap = cap(SettingsStore.fiveHourLimitKey)
@@ -105,7 +105,7 @@ final class AggregationCoordinator: ObservableObject {
         // on every 5-minute tick / launch. Falls back to local on any failure.
         var source: RateDataSource = .jsonl
         var officialAt: Date? = nil
-        let oauthOn = (suite?.bool(forKey: "oauthEnabled")) ?? false
+        let oauthOn = suite.bool(forKey: "oauthEnabled")
         if oauthOn {
             let throttle: TimeInterval = 15 * 60
             let prev = try? store.readRate()
