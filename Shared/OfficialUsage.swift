@@ -64,6 +64,11 @@ struct OfficialUsage: Equatable {
 
     /// Reads Claude Code's keychain credentials and returns the access token only if it's
     /// still valid. Returns nil (no refresh) when missing/expired/denied.
+    ///
+    /// Also hands the subscription tier to `ClaudePlan`. Claude Code no longer writes
+    /// `~/.claude/.credentials.json`, so the Keychain is the only remaining source for the
+    /// plan label — and this is the one place already paying for a Keychain read, so
+    /// piggybacking here avoids adding a second macOS permission prompt.
     private static func freshAccessToken() -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -77,6 +82,10 @@ struct OfficialUsage: Equatable {
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let oauth = obj["claudeAiOauth"] as? [String: Any],
               let token = oauth["accessToken"] as? String else { return nil }
+
+        // The tier stays meaningful even when the token itself has expired.
+        ClaudePlan.remember(tier: oauth["rateLimitTier"] as? String)
+
         if let expiresMs = oauth["expiresAt"] as? Double,
            Date().timeIntervalSince1970 * 1000 >= expiresMs { return nil }   // expired → fall back
         return token

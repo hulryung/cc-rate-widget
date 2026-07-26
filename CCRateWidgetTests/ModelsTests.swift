@@ -1,5 +1,30 @@
 import XCTest
 
+final class RateDataFallbackTests: XCTestCase {
+    /// The widget falls back to this when no snapshot is on disk. It must read as
+    /// "no data" — the sample `placeholder` would otherwise be shown as live usage.
+    func test_unavailable_isEmptyAndFlaggedNoLocalData() {
+        let r = RateData.unavailable
+        XCTAssertEqual(r.status, .noLocalData)
+        XCTAssertEqual(r.source, .noLocalData)
+        XCTAssertEqual(r.session.tokens, 0)
+        XCTAssertEqual(r.weekly.tokens, 0)
+        XCTAssertEqual(r.weeklySonnet.tokens, 0)
+        XCTAssertEqual(r.session.cost, 0)
+        XCTAssertEqual(r.weekly.cost, 0)
+        XCTAssertNil(r.session.utilization)
+        XCTAssertNil(r.planName)
+    }
+
+    /// Guards the mistake being fixed: the gallery sample claims to be active usage,
+    /// so it must never be what a data-less widget renders.
+    func test_placeholder_isNotMistakenForNoData() {
+        XCTAssertEqual(RateData.placeholder.status, .active)
+        XCTAssertGreaterThan(RateData.placeholder.session.tokens, 0)
+        XCTAssertNotEqual(RateData.placeholder.status, RateData.unavailable.status)
+    }
+}
+
 final class ModelsTests: XCTestCase {
     func test_rateDataSource_rawValues() {
         XCTAssertEqual(RateDataSource.jsonl.rawValue, "jsonl")

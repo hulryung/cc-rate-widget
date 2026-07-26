@@ -95,6 +95,16 @@ struct RateData {
     var planName: String? = nil           // detected from Claude Code credentials (e.g. "Max 20x")
     var officialFetchedAt: Date? = nil    // when the official % was last read (to throttle keychain reads)
 
+    /// Used when no snapshot exists yet — the app has never run, or the store was cleared.
+    /// Deliberately distinct from `placeholder`: real zeros and `.noLocalData`, so the
+    /// widget shows its setup prompt instead of passing sample numbers off as live usage.
+    static var unavailable: RateData {
+        let empty = CategoryData(tokens: 0, cost: 0, resetsAt: nil)
+        return RateData(session: empty, weekly: empty, weeklySonnet: empty,
+                        fetchedAt: Date(), status: .noLocalData, source: .noLocalData)
+    }
+
+    /// Sample data for WidgetKit's gallery preview only. Never render this as real usage.
     static let placeholder = RateData(
         session: CategoryData(tokens: 240_000, cost: 1.20, resetsAt: Date().addingTimeInterval(3600), limitTokens: 1_000_000, limitKind: .typicalPeak),
         weekly: CategoryData(tokens: 3_800_000, cost: 24.00, resetsAt: Date().addingTimeInterval(86400), limitTokens: 10_000_000, limitKind: .userLimit),

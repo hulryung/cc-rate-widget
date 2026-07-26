@@ -27,7 +27,55 @@ final class ClaudePlanTests: XCTestCase {
     func test_detect_nilWhenMissing() {
         let home = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("claudeplan-missing-\(UUID().uuidString)")
-        XCTAssertNil(ClaudePlan.detect(home: home))
+        XCTAssertNil(ClaudePlan.detect(home: home, defaults: nil))
+    }
+
+    // MARK: - Keychain-sourced tier
+
+    /// A dedicated suite per test so these never touch the real App Group defaults.
+    private func scratchDefaults() -> UserDefaults {
+        let suite = "claudeplan-test-\(UUID().uuidString)"
+        UserDefaults().removePersistentDomain(forName: suite)
+        return UserDefaults(suiteName: suite)!
+    }
+
+    /// Current Claude Code keeps credentials in the Keychain and writes no
+    /// `.credentials.json`, so the remembered tier is the only source for the label.
+    func test_detect_fallsBackToRememberedTier() {
+        let defaults = scratchDefaults()
+        let home = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("claudeplan-none-\(UUID().uuidString)")
+
+        XCTAssertNil(ClaudePlan.detect(home: home, defaults: defaults))
+        ClaudePlan.remember(tier: "default_claude_max_20x", defaults: defaults)
+        XCTAssertEqual(ClaudePlan.detect(home: home, defaults: defaults), "Max 20x")
+    }
+
+    /// The credentials file, when it exists, stays authoritative over the cache.
+    func test_detect_prefersCredentialsFileOverRememberedTier() throws {
+        let defaults = scratchDefaults()
+        ClaudePlan.remember(tier: "default_claude_pro", defaults: defaults)
+
+        let home = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("claudeplan-\(UUID().uuidString)")
+        let dir = home.appendingPathComponent(".claude")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        try #"{"claudeAiOauth":{"rateLimitTier":"default_claude_max_20x"}}"#
+            .write(to: dir.appendingPathComponent(".credentials.json"), atomically: true, encoding: .utf8)
+
+        XCTAssertEqual(ClaudePlan.detect(home: home, defaults: defaults), "Max 20x")
+    }
+
+    /// A failed Keychain read must not wipe a tier we already knew.
+    func test_remember_ignoresNilAndEmpty() {
+        let defaults = scratchDefaults()
+        ClaudePlan.remember(tier: "default_claude_max_5x", defaults: defaults)
+        ClaudePlan.remember(tier: nil, defaults: defaults)
+        ClaudePlan.remember(tier: "", defaults: defaults)
+        let home = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("claudeplan-none-\(UUID().uuidString)")
+        XCTAssertEqual(ClaudePlan.detect(home: home, defaults: defaults), "Max 5x")
     }
 }
 

@@ -25,7 +25,9 @@ struct RateProvider: TimelineProvider {
 
     private func load() -> RateEntry {
         let store = AppGroupStore.shared
-        let data = (try? store.readRate()) ?? .placeholder
+        // `.unavailable`, not `.placeholder`: with no snapshot on disk the widget must say
+        // so, not render sample numbers that look like real usage.
+        let data = (try? store.readRate()) ?? .unavailable
         let projects = try? store.readProjects()
         return RateEntry(date: Date(), data: data, projects: projects)
     }
