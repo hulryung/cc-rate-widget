@@ -44,7 +44,7 @@ struct UsageChip: View {
             .padding(.horizontal, Metric.tight)
             .padding(.vertical, 2)
             .background(Capsule().fill(level.chipFill))
-            .foregroundStyle(level.tint)
+            .foregroundStyle(level.textTint)
             .accessibilityLabel("\(Int(utilization * 100)) percent used, \(level.word)")
     }
 }

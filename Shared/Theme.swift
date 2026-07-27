@@ -73,9 +73,20 @@ enum UsageLevel {
         else                       { self = .normal }
     }
 
+    /// Fill colour — bars and other shapes, where a large area carries a muted tone fine.
     var tint: Color {
         switch self {
         case .normal:  return .secondary
+        case .warning: return .orange
+        case .over:    return .red
+        }
+    }
+
+    /// Text colour. Small type needs more contrast than a filled shape, so the resting
+    /// state is full-strength `.primary` — neutral means no hue, not low contrast.
+    var textTint: Color {
+        switch self {
+        case .normal:  return .primary
         case .warning: return .orange
         case .over:    return .red
         }
@@ -100,9 +111,13 @@ enum UsageLevel {
     }
 
     #if canImport(AppKit)
+    /// For the menu bar, where the number must stay legible against a busy bar at 12pt.
+    /// Normal is `labelColor`, not `secondaryLabelColor`: the point of the resting state
+    /// is to carry no *hue*, so warning and over have somewhere to stand out from —
+    /// not to be faint. Secondary label reads as washed-out grey up there.
     var nsColor: NSColor {
         switch self {
-        case .normal:  return .secondaryLabelColor
+        case .normal:  return .labelColor
         case .warning: return .systemOrange
         case .over:    return .systemRed
         }
