@@ -9,6 +9,9 @@ struct UsagePopover: View {
     @ObservedObject var coordinator = AggregationCoordinator.shared
     var onOpenWindow: () -> Void = {}
     var onDismiss: () -> Void = {}
+    /// The HUD floats on a clear panel and has to round its own corners; the popover is
+    /// already clipped by its chrome.
+    var cornerRadius: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metric.group) {
@@ -50,5 +53,11 @@ struct UsagePopover: View {
         }
         .padding(Metric.section)
         .frame(width: 380)
+        // Paint our own opaque surface rather than letting the popover's vibrant chrome
+        // show through. Relying on the chrome meant the cards resolved their colours
+        // against a different appearance than the surrounding material, so white cards
+        // sat on a dark popover and the footer text vanished into it.
+        .background(Color(nsColor: .windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }

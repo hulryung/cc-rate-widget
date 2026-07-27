@@ -74,10 +74,12 @@ final class UsageHUD {
                 self?.hide()
                 MenuBarMode.openMainWindow()
             },
-            onDismiss: { [weak self] in self?.hide() }
+            onDismiss: { [weak self] in self?.hide() },
+            cornerRadius: 14          // the panel is transparent; the content is the shape
         )
 
         let hosting = NSHostingController(rootView: content)
+        hosting.view.appearance = NSApp.effectiveAppearance
         let p = panel ?? makePanel()
         p.contentViewController = hosting
         p.setContentSize(hosting.view.fittingSize)
@@ -85,6 +87,9 @@ final class UsageHUD {
 
         p.alphaValue = 0
         p.orderFrontRegardless()
+        // The panel is transparent, so its shadow is derived from the rendered content.
+        // Without invalidating, a reused panel keeps the previous frame's shadow shape.
+        p.invalidateShadow()
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
             p.animator().alphaValue = 1

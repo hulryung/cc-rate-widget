@@ -101,8 +101,15 @@ final class MenuBarMode {
             onDismiss: { [weak self] in self?.closePopover() }
         )
 
+        let hosting = NSHostingController(rootView: content)
+        // Pin the appearance explicitly. Without this the hosted view can resolve its
+        // colours against an appearance that differs from the popover chrome, which
+        // showed up as light cards inside a dark popover until the next redraw.
+        hosting.view.appearance = NSApp.effectiveAppearance
+
         let p = NSPopover()
-        p.contentViewController = NSHostingController(rootView: content)
+        p.contentViewController = hosting
+        p.appearance = NSApp.effectiveAppearance
         p.behavior = .transient          // dismisses when you click away — the "disappears" part
         p.animates = true
         p.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
