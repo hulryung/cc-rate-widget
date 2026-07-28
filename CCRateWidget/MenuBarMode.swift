@@ -18,11 +18,6 @@ final class MenuBarMode {
 
     private init() {}
 
-    func installIfEnabled() {
-        guard SettingsStore.shared.menuBarEnabled else { return }
-        install()
-    }
-
     func install() {
         guard statusItem == nil else { return }
 
@@ -41,12 +36,6 @@ final class MenuBarMode {
         }
     }
 
-    func remove() {
-        if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
-        statusItem = nil
-        cancellable = nil
-        closePopover()
-    }
 
     // MARK: - Title
 
@@ -93,13 +82,7 @@ final class MenuBarMode {
     private func showPopover() {
         guard let button = statusItem?.button else { return }
 
-        let content = UsagePopover(
-            onOpenWindow: { [weak self] in
-                self?.closePopover()
-                MenuBarMode.openMainWindow()
-            },
-            onDismiss: { [weak self] in self?.closePopover() }
-        )
+        let content = UsagePopover(onDismiss: { [weak self] in self?.closePopover() })
 
         let hosting = NSHostingController(rootView: content)
         // Pin the appearance explicitly. Without this the hosted view can resolve its
@@ -134,9 +117,6 @@ final class MenuBarMode {
 
     private func showContextMenu() {
         let menu = NSMenu()
-        let open = NSMenuItem(title: "Open Window", action: #selector(openAction), keyEquivalent: "o")
-        open.target = self
-        menu.addItem(open)
         let refresh = NSMenuItem(title: "Refresh Now", action: #selector(refreshAction), keyEquivalent: "r")
         refresh.target = self
         menu.addItem(refresh)
@@ -156,18 +136,13 @@ final class MenuBarMode {
 
     // MARK: - Actions
 
-    static func openMainWindow() {
-        NSApp.activate(ignoringOtherApps: true)
-        if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
-            window.makeKeyAndOrderFront(nil)
-        }
+    /// The status item and the popover are the only routes to Settings in an accessory
+    /// app, so this has to work without a menu to route through.
+    static func openSettings() {
+        SettingsWindowController.shared.show()
     }
 
     @objc private func refreshAction() { AggregationCoordinator.shared.runOnce() }
-    @objc private func openAction() { MenuBarMode.openMainWindow() }
     @objc private func quitAction() { NSApp.terminate(nil) }
-    @objc private func settingsAction() {
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-    }
+    @objc private func settingsAction() { MenuBarMode.openSettings() }
 }

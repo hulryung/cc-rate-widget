@@ -70,10 +70,6 @@ final class UsageHUD {
         AggregationCoordinator.shared.runOnce()   // freshen while it fades in
 
         let content = UsagePopover(
-            onOpenWindow: { [weak self] in
-                self?.hide()
-                MenuBarMode.openMainWindow()
-            },
             onDismiss: { [weak self] in self?.hide() },
             cornerRadius: 14          // the panel is transparent; the content is the shape
         )

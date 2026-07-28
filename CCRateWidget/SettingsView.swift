@@ -1,9 +1,7 @@
 import SwiftUI
-import AppKit
 
 struct SettingsView: View {
     @ObservedObject var store = SettingsStore.shared
-    @State private var showRelaunchPrompt = false
 
     var body: some View {
         Form {
@@ -31,10 +29,8 @@ struct SettingsView: View {
             .onChange(of: store.weeklyLimitMillions) { _, _ in AggregationCoordinator.shared.runOnce() }
 
             Section {
-                Toggle("Show in menu bar", isOn: $store.menuBarEnabled)
-                    .onChange(of: store.menuBarEnabled) { _, on in
-                        if on { MenuBarMode.shared.install() } else { MenuBarMode.shared.remove() }
-                    }
+                // No toggle for the menu bar itself: it is the app's only permanent
+                // surface, so hiding it would leave nothing to click.
                 Toggle("Global shortcut (⌥⌘U)", isOn: $store.hotkeyEnabled)
                     .onChange(of: store.hotkeyEnabled) { _, on in
                         if on { UsageHUD.shared.registerHotKey() } else { UsageHUD.shared.unregisterHotKey() }
@@ -70,12 +66,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .alert("Menu bar setting saved", isPresented: $showRelaunchPrompt) {
-            Button("Quit and reopen") { NSApplication.relaunchApp() }
-            Button("Later", role: .cancel) {}
-        } message: {
-            Text("Menu bar mode setting saved. The Dock icon will remain visible — relaunching is only needed to attach (or detach) the menu-bar item this session.")
-        }
     }
 
     private func limitField(_ binding: Binding<Double>) -> some View {
@@ -86,15 +76,3 @@ struct SettingsView: View {
         }
     }
 }
-
-extension NSApplication {
-    @objc static func relaunchApp() {
-        let path = Bundle.main.bundlePath
-        let task = Process()
-        task.launchPath = "/usr/bin/open"
-        task.arguments = ["-n", path]
-        try? task.run()
-        NSApp.terminate(nil)
-    }
-}
-

@@ -127,7 +127,7 @@ final class LocalStore {
                 as? [String: Any] else { return }
 
         let target = UserDefaults.standard
-        for key in ["oauthEnabled", "menuBarEnabled", "hotkeyEnabled", "fiveHourLimitMillions",
+        for key in ["oauthEnabled", "hotkeyEnabled", "fiveHourLimitMillions",
                     "weeklyLimitMillions", "claudeRateLimitTier", "credentials"] {
             if target.object(forKey: key) == nil, let value = old[key] {
                 target.set(value, forKey: key)
