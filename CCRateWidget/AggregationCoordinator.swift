@@ -100,9 +100,8 @@ final class AggregationCoordinator: ObservableObject {
                          limit: nil, kind: nil)
 
         // Official Anthropic % (opt-in): overlays the real utilization from Claude Code's
-        // keychain token, so the bars match `/status`. Throttled — the cached official %
-        // is reused for up to 15 min — so we don't hit the keychain (and its macOS prompt)
-        // on every 5-minute tick / launch. Falls back to local on any failure.
+        // keychain token, so the bars match `/status`. Reading the keychain can raise a
+        // macOS permission prompt, so it happens at most once per throttle window.
         var source: RateDataSource = .jsonl
         var officialAt: Date? = nil
         let oauthOn = suite.bool(forKey: "oauthEnabled")
@@ -110,8 +109,15 @@ final class AggregationCoordinator: ObservableObject {
             let throttle: TimeInterval = 15 * 60
             let prev = try? store.readRate()
             var official: OfficialUsage?
-            if let prev, prev.source == .oauth,
-               let pAt = prev.officialFetchedAt, now.timeIntervalSince(pAt) < throttle,
+
+            // Throttle on the last *attempt*, not the last success. Keying off success
+            // meant a single failure — a denied prompt, an expired token, no network —
+            // dropped us back to re-reading the keychain every 5-minute tick, so the user
+            // got prompted again and again instead of once.
+            let lastAttempt = prev?.officialFetchedAt
+            let withinWindow = lastAttempt.map { now.timeIntervalSince($0) < throttle } ?? false
+
+            if withinWindow, let prev, prev.source == .oauth,
                let f = prev.session.officialUtilization {
                 official = OfficialUsage(
                     fiveHour: f,
@@ -120,10 +126,14 @@ final class AggregationCoordinator: ObservableObject {
                     fiveHourResetsAt: prev.session.resetsAt,
                     sevenDayResetsAt: prev.weekly.resetsAt
                 )
-                officialAt = pAt
+                officialAt = lastAttempt
+            } else if withinWindow {
+                // Attempted recently and it didn't work. Stay on local data rather than
+                // asking again; the next window will retry.
+                officialAt = lastAttempt
             } else {
                 official = OfficialUsage.fetch()   // reads keychain (may prompt the first time)
-                officialAt = official != nil ? now : nil
+                officialAt = now                   // recorded either way
             }
             if let off = official {
                 session = session.withOfficial(off.fiveHour, resetsAt: off.fiveHourResetsAt)
