@@ -18,8 +18,9 @@ final class UsageHUD {
     private var hideWorkItem: DispatchWorkItem?
     private var escMonitor: Any?
 
-    /// Seconds on screen before fading out. Long enough to read three numbers.
-    private let visibleDuration: TimeInterval = 3.0
+    /// Seconds on screen before fading out. Three was measurably too short once the HUD
+    /// grew a variable number of windows — the scoped per-model ones push the list longer.
+    private let visibleDuration: TimeInterval = 5.0
 
     private init() {}
 
@@ -69,10 +70,9 @@ final class UsageHUD {
     func show() {
         AggregationCoordinator.shared.runOnce()   // freshen while it fades in
 
-        let content = UsagePopover(
-            onDismiss: { [weak self] in self?.hide() },
-            cornerRadius: 14          // the panel is transparent; the content is the shape
-        )
+        // Its own view, not the popover: three seconds is enough to read a percentage and
+        // a countdown, not to browse cards and a project list.
+        let content = UsageHUDView(cornerRadius: 14)   // panel is transparent; content is the shape
 
         let hosting = NSHostingController(rootView: content)
         hosting.view.appearance = NSApp.effectiveAppearance

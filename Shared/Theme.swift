@@ -3,12 +3,10 @@ import SwiftUI
 import AppKit
 #endif
 
-/// Design tokens shared by the app window, the menu bar, and all three widget sizes.
+/// Design tokens shared by the menu-bar popover, the hotkey HUD, and Settings.
 ///
-/// Lives in Shared/ because `project.yml` compiles that directory into every target, so
-/// the sandboxed widget extension and the app resolve identical values. Before this
-/// existed, the usage-colour thresholds were written out three separate times and had
-/// already begun to drift.
+/// Before this existed the usage-colour thresholds were written out three separate times
+/// and had already begun to drift.
 ///
 /// The scale follows the conventions the sibling apps agree on: semantic system colours,
 /// a hairline of `separatorColor` at 0.5pt, `controlBackgroundColor` surfaces, and
@@ -27,12 +25,8 @@ enum Metric {
     static let chipRadius: CGFloat = 6
     static let hairline:   CGFloat = 0.5
 
-    static let barHeight: CGFloat = 8
-
-    // Widgets run to a tighter budget than the window.
-    static let widgetBar:   CGFloat = 6
-    static let widgetTight: CGFloat = 4
-    static let widgetGroup: CGFloat = 8
+    static let barHeight:      CGFloat = 8
+    static let barHeightSlim:  CGFloat = 6   // secondary rows
 }
 
 // MARK: - Type ramps
@@ -49,13 +43,15 @@ enum AppType {
     static let micro  = Font.caption2.weight(.medium)
 }
 
-/// Widget type. Fixed sizes are deliberate here: widgets have a hard space budget and do
-/// not participate in Dynamic Type. Four steps with perceptible gaps; nothing below 10pt.
-enum WidgetType {
-    static let hero  = Font.system(size: 22, weight: .semibold, design: .rounded).monospacedDigit()
-    static let value = Font.system(size: 15, weight: .semibold).monospacedDigit()
-    static let label = Font.system(size: 12, weight: .medium)
-    static let micro = Font.system(size: 10)
+/// The hotkey HUD is read in about three seconds and then disappears, so it inverts the
+/// popover's hierarchy: the percentage and the time left are the message, while the token
+/// and dollar totals — the detail you'd browse in the popover — recede.
+enum HUDType {
+    static let percent   = Font.system(size: 44, weight: .semibold, design: .rounded).monospacedDigit()
+    static let remaining = Font.system(size: 17, weight: .semibold).monospacedDigit()
+    static let title     = Font.system(size: 13, weight: .semibold)
+    static let detail    = Font.system(size: 12).monospacedDigit()
+    static let micro     = Font.system(size: 11)
 }
 
 // MARK: - Usage level
