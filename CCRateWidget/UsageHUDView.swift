@@ -8,7 +8,10 @@ import SwiftUI
 /// Token and dollar totals stay, but demoted.
 struct UsageHUDView: View {
     @ObservedObject var coordinator = AggregationCoordinator.shared
-    var cornerRadius: CGFloat = 14
+    var cornerRadius: CGFloat = 18
+    /// Drives the entrance. A panel that simply exists on the next frame is easy to miss;
+    /// something that grows into place is not.
+    @State private var appeared = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metric.group) {
@@ -37,10 +40,23 @@ struct UsageHUDView: View {
                     .frame(maxWidth: .infinity, minHeight: 80)
             }
         }
-        .padding(Metric.section)
-        .frame(width: 360)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .padding(Metric.screen)
+        .frame(width: 400)
+        // A translucent material, not a flat window colour. This is what macOS itself uses
+        // for transient HUDs (Spotlight, the volume overlay), and it reads as floating
+        // *above* the screen rather than as one more window that happens to be in front.
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+        )
+        .scaleEffect(appeared ? 1 : 0.94)
+        .opacity(appeared ? 1 : 0)
+        .onAppear {
+            // Critically damped on purpose: the panel is sized to its content, so an
+            // overshoot past 1.0 would clip against its own edges.
+            withAnimation(.spring(response: 0.28, dampingFraction: 1.0)) { appeared = true }
+        }
     }
 }
 

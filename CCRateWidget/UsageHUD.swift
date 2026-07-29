@@ -81,15 +81,13 @@ final class UsageHUD {
         p.setContentSize(hosting.view.fittingSize)
         centerOnActiveScreen(p)
 
-        p.alphaValue = 0
+        // The entrance is the view's (scale + fade), so the window itself comes up opaque —
+        // animating alpha here as well just muddied it.
+        p.alphaValue = 1
         p.orderFrontRegardless()
         // The panel is transparent, so its shadow is derived from the rendered content.
         // Without invalidating, a reused panel keeps the previous frame's shadow shape.
         p.invalidateShadow()
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.12
-            p.animator().alphaValue = 1
-        }
         panel = p
 
         escMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
