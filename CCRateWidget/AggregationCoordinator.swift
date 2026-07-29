@@ -127,25 +127,34 @@ final class AggregationCoordinator: ObservableObject {
             // dropped us back to re-reading the keychain every 5-minute tick, so the user
             // got prompted again and again instead of once.
             let lastAttempt = prev?.officialFetchedAt
-            let withinWindow = lastAttempt.map { now.timeIntervalSince($0) < throttle } ?? false
+            let recentlyTried = lastAttempt.map { now.timeIntervalSince($0) < throttle } ?? false
 
-            /// Local tokens and dollars for the windows we can measure ourselves. A scoped
-            /// per-model window has no local counterpart, so it carries the percentage only.
-            func localData(for id: String, scope: String?) -> CategoryData? {
-                switch id {
-                case RateData.sessionID: return localSession
-                case RateData.weeklyID:  return localWeekly
-                default:
-                    // A scoped window ("Weekly · Fable") does have local numbers — we
-                    // measure every family from the same logs, we just have no limit to
-                    // divide by. Showing them beats rendering 0.
-                    guard let scope else { return nil }
-                    let key = ModelFamily.key(forDisplayName: scope)
-                    guard let totals = snap.sevenDayByFamily[key], totals.tokens > 0 else { return nil }
-                    return cat(tokens: totals.tokens, cost: totals.cost,
-                               earliest: snap.earliestInSevenDay, window: 7 * 86400,
-                               limit: nil, kind: nil)
-                }
+            // A cached window whose reset has already passed describes the previous block.
+            // Reusing it after a rollover is what left "Weekly · Fable" quoting last week's
+            // reset time — and, since the local totals are now derived from that instant,
+            // last week's tokens too. A rollover is exactly when someone looks, so refetch.
+            let cacheRolledOver = prev?.windows.contains {
+                ($0.data.officialUtilization != nil) && ($0.data.resetsAt.map { $0 <= now } ?? false)
+            } ?? false
+            let withinWindow = recentlyTried && !cacheRolledOver
+
+            /// Local tokens and dollars measured over *Anthropic's* window, not ours.
+            ///
+            /// Their windows are fixed blocks: the weekly one had just rolled over when
+            /// this was written, so the official figure was 0% while our rolling 7-day
+            /// count still said 99.7M. Deriving the block start from `resets_at` makes the
+            /// two halves of a card describe the same period.
+            ///
+            /// Without a `resets_at` there is nothing to anchor to, so the window shows its
+            /// percentage alone rather than a number covering the wrong span.
+            func localData(id: String, scope: String?, resetsAt: Date?) -> CategoryData? {
+                guard let resetsAt else { return nil }
+                let period: TimeInterval = id == RateData.sessionID ? 5 * 3600 : 7 * 86400
+                let start = resetsAt.addingTimeInterval(-period)
+                let family = scope.map { ModelFamily.key(forDisplayName: $0) }
+                if let family, family.isEmpty { return nil }
+                let t = snap.totals(since: start, family: family)
+                return CategoryData(tokens: t.tokens, cost: t.cost, resetsAt: resetsAt)
             }
 
             if withinWindow, let prev, prev.source == .oauth, !prev.windows.isEmpty {
@@ -156,7 +165,8 @@ final class AggregationCoordinator: ObservableObject {
                     guard let u = w.data.officialUtilization else { return w }
                     // The id carries the scope label after the colon ("weekly_scoped:Fable").
                     let scope = w.id.split(separator: ":", maxSplits: 1).dropFirst().first.map(String.init)
-                    let base = localData(for: w.id, scope: scope) ?? CategoryData(tokens: 0, cost: 0, resetsAt: nil)
+                    let base = localData(id: w.id, scope: scope, resetsAt: w.data.resetsAt)
+                        ?? CategoryData(tokens: 0, cost: 0, resetsAt: w.data.resetsAt)
                     var out = w
                     out.data = base.withOfficial(u, resetsAt: w.data.resetsAt)
                     return out
@@ -175,18 +185,35 @@ final class AggregationCoordinator: ObservableObject {
                 // per-model windows (e.g. "Fable") that come and go, so the set is theirs
                 // to decide; we attach the numbers we measured where a window maps to ours.
                 if let off = official, !off.limits.isEmpty {
+                    // A scoped window sometimes arrives without its own resets_at (it did,
+                    // minutes after a weekly rollover). It shares the weekly block, so
+                    // borrow that reset rather than dropping the window's numbers.
+                    let weeklyReset = off.limits.first { $0.kind == "weekly_all" }?.resetsAt
                     windows = off.limits.map { limit in
-                        let base = localData(for: limit.id, scope: limit.scopeLabel)
-                            ?? CategoryData(tokens: 0, cost: 0, resetsAt: nil)
+                        let reset = limit.resetsAt ?? (limit.kind.hasPrefix("weekly") ? weeklyReset : nil)
+                        let base = localData(id: limit.id, scope: limit.scopeLabel, resetsAt: reset)
+                            ?? CategoryData(tokens: 0, cost: 0, resetsAt: reset)
                         return UsageWindow(
                             id: limit.id,
                             title: limit.title,
                             subtitle: limit.subtitle,
-                            data: base.withOfficial(limit.utilization, resetsAt: limit.resetsAt))
+                            data: base.withOfficial(limit.utilization, resetsAt: reset))
                     }
                     source = .oauth
                 }
             }
+        }
+
+        // Anthropic lists session first, but the weekly window is what people plan around
+        // and every surface gives its first entry the largest treatment. Order for the
+        // reader, not for the wire.
+        windows.sort { a, b in
+            func rank(_ w: UsageWindow) -> Int {
+                if w.id == RateData.weeklyID { return 0 }
+                if w.id == RateData.sessionID { return 2 }
+                return 1                              // scoped per-model windows
+            }
+            return rank(a) < rank(b)
         }
 
         let rate = RateData(

@@ -329,3 +329,58 @@ enum AggTestISOFormatter {
         return f
     }()
 }
+
+final class SnapshotTotalsTests: XCTestCase {
+    private func event(_ agoSeconds: TimeInterval, tokens: Int, cost: Double, family: String,
+                       now: Date) -> StoredEvent {
+        StoredEvent(t: now.addingTimeInterval(-agoSeconds).timeIntervalSince1970,
+                    tokens: tokens, family: family, cost: cost, project: "/p", id: UUID().uuidString)
+    }
+
+    /// Anthropic's windows are fixed blocks with their own start. Counting our rolling
+    /// window instead is how a card came to read "99.7M tok" beside a freshly-reset "0%".
+    func test_totals_sinceAnInstant_excludesEarlierEvents() {
+        let now = Date()
+        let snap = JSONLAggregator.computeSnapshot(events: [
+            event(30 * 60, tokens: 100, cost: 1, family: "opus", now: now),   // inside
+            event(6 * 3600, tokens: 900, cost: 9, family: "opus", now: now),  // before the block
+        ], now: now)
+
+        let t = snap.totals(since: now.addingTimeInterval(-3600))
+        XCTAssertEqual(t.tokens, 100)
+        XCTAssertEqual(t.cost, 1, accuracy: 0.0001)
+    }
+
+    func test_totals_filtersByFamily() {
+        let now = Date()
+        let snap = JSONLAggregator.computeSnapshot(events: [
+            event(60, tokens: 400, cost: 4, family: "fable", now: now),
+            event(60, tokens: 100, cost: 1, family: "opus", now: now),
+        ], now: now)
+
+        XCTAssertEqual(snap.totals(since: now.addingTimeInterval(-3600), family: "fable").tokens, 400)
+        XCTAssertEqual(snap.totals(since: now.addingTimeInterval(-3600), family: "opus").tokens, 100)
+        XCTAssertEqual(snap.totals(since: now.addingTimeInterval(-3600)).tokens, 500)
+    }
+
+    /// Just after a reset the block is empty, and the card must say so rather than
+    /// reporting the previous week's rolling total.
+    func test_totals_immediatelyAfterReset_isZero() {
+        let now = Date()
+        let snap = JSONLAggregator.computeSnapshot(events: [
+            event(2 * 3600, tokens: 5_000, cost: 50, family: "opus", now: now),
+        ], now: now)
+        XCTAssertEqual(snap.totals(since: now.addingTimeInterval(-60)).tokens, 0)
+        XCTAssertEqual(snap.sevenDayTokens, 5_000)   // the rolling figure is unchanged
+    }
+
+    /// Deduplication has to happen before the events are kept, or a totals() call
+    /// double-counts what the window sums got right.
+    func test_totals_respectsDeduplication() {
+        let now = Date()
+        let t = now.addingTimeInterval(-60).timeIntervalSince1970
+        let dup = StoredEvent(t: t, tokens: 100, family: "opus", cost: 1, project: "/p", id: "same")
+        let snap = JSONLAggregator.computeSnapshot(events: [dup, dup], now: now)
+        XCTAssertEqual(snap.totals(since: now.addingTimeInterval(-3600)).tokens, 100)
+    }
+}

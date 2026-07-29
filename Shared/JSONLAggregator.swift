@@ -54,6 +54,25 @@ struct AggregationSnapshot {
     /// P90 of the user's own historical 5-hour block token totals — a self-calibrated
     /// "typical peak" denominator. nil until there are enough active blocks to be meaningful.
     var typicalFiveHourPeak: Int?
+
+    /// Deduplicated in-window events, kept so totals can be recomputed over an arbitrary
+    /// period. Anthropic's windows are fixed blocks with their own start times, not the
+    /// rolling windows we compute — right after a weekly reset the two disagree completely,
+    /// which is how a card came to read "99.7M tok" beside "0%".
+    var events: [StoredEvent] = []
+
+    /// Tokens and cost since an instant, optionally for one model family.
+    func totals(since start: Date, family: String? = nil) -> (tokens: Int, cost: Double) {
+        let from = start.timeIntervalSince1970
+        var tokens = 0
+        var cost = 0.0
+        for e in events where e.t >= from {
+            if let family, e.family != family { continue }
+            tokens += e.tokens
+            cost += e.cost
+        }
+        return (tokens, cost)
+    }
 }
 
 final class JSONLAggregator {
@@ -160,6 +179,7 @@ final class JSONLAggregator {
         var perProjectCost:   [String: Double] = [:]
         var blockTotals: [Int: Int] = [:]   // fixed 5h block index → tokens (for P90 peak)
         var seen = Set<String>()            // dedupe: same event logged in multiple files
+        var kept: [StoredEvent] = []
 
         for e in events {
             let age = nowT - e.t
@@ -184,6 +204,7 @@ final class JSONLAggregator {
             }
             if age <= halfHour { halfHourTokens += e.tokens }
 
+            kept.append(e)
             perProjectTokens[e.project, default: 0] += e.tokens
             perProjectCost[e.project, default: 0]   += e.cost
 
@@ -214,7 +235,8 @@ final class JSONLAggregator {
             earliestInSevenDay: earliest7d.map(Date.init(timeIntervalSince1970:)),
             projects: ProjectBreakdown(entries: entries),
             lastHalfHourTokensPerSecond: Double(halfHourTokens) / halfHour,
-            typicalFiveHourPeak: typicalPeak
+            typicalFiveHourPeak: typicalPeak,
+            events: kept
         )
     }
 
