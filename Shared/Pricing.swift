@@ -84,3 +84,21 @@ enum Pricing {
               + Double(usage.cacheRead)    * r.cacheRead) / 1_000_000.0
     }
 }
+
+/// Maps a model id onto the family name Anthropic uses when it scopes a rate-limit
+/// window ("Weekly · Fable"). Matching is on the family word so a new version — the exact
+/// drift that left Claude 5 unpriced — still lands in the right bucket.
+enum ModelFamily {
+    static let known = ["fable", "mythos", "opus", "sonnet", "haiku"]
+
+    static func of(_ model: String) -> String {
+        let m = model.lowercased()
+        return known.first { m.contains($0) } ?? ""
+    }
+
+    /// Anthropic's display label ("Fable") back to the stored key.
+    static func key(forDisplayName name: String) -> String {
+        let n = name.lowercased()
+        return known.first { n.contains($0) } ?? ""
+    }
+}

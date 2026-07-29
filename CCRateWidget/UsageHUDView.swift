@@ -58,8 +58,10 @@ private struct WindowBlock: View {
                 Text(window.subtitle).font(HUDType.micro).foregroundStyle(.tertiary)
                 Spacer()
                 // Demoted: still available, but not what the eye lands on first.
-                Text(UsageFormat.tokens(cat.tokens) + " tok")
-                    .font(HUDType.detail).foregroundStyle(.secondary)
+                if cat.tokens > 0 {
+                    Text(UsageFormat.tokens(cat.tokens) + " tok")
+                        .font(HUDType.detail).foregroundStyle(.secondary)
+                }
                 if cat.cost > 0 {
                     Text(UsageFormat.cost(cat.cost))
                         .font(HUDType.detail).foregroundStyle(.tertiary)

@@ -91,7 +91,7 @@ final class LocalStoreTests: XCTestCase {
     }
 
     func test_events_roundTrip() throws {
-        let events = ["/p/s.jsonl": [StoredEvent(t: 12345, tokens: 100, sonnet: false, cost: 0.1, project: "/p")]]
+        let events = ["/p/s.jsonl": [StoredEvent(t: 12345, tokens: 100, family: "opus", cost: 0.1, project: "/p")]]
         try store.writeEvents(events)
         let loaded = try store.readEvents()
         XCTAssertEqual(loaded["/p/s.jsonl"]?.first?.tokens, 100)

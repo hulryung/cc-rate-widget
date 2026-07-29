@@ -5,25 +5,28 @@ import Foundation
 struct StoredEvent: Codable, Equatable {
     let t: Double        // event timestamp, epoch seconds
     let tokens: Int      // utilizationTokens (input + output + cacheWrite)
-    let sonnet: Bool     // model matched /sonnet/i
+    /// Model family — "opus", "fable", "sonnet", … Was a `sonnet: Bool`, which threw away
+    /// every other family, so a per-model window like Anthropic's "Weekly · Fable" had no
+    /// local tokens to show and rendered a misleading 0.
+    let family: String
     let cost: Double     // USD
     let project: String  // cwd
     let id: String?      // dedupe key (messageId:requestId); nil = always counted
 
-    init(t: Double, tokens: Int, sonnet: Bool, cost: Double, project: String, id: String? = nil) {
-        self.t = t; self.tokens = tokens; self.sonnet = sonnet
+    init(t: Double, tokens: Int, family: String, cost: Double, project: String, id: String? = nil) {
+        self.t = t; self.tokens = tokens; self.family = family
         self.cost = cost; self.project = project; self.id = id
     }
 
     enum CodingKeys: String, CodingKey {
-        case t, tokens = "k", sonnet = "s", cost = "c", project = "p", id = "i"
+        case t, tokens = "k", family = "f", cost = "c", project = "p", id = "i"
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.t = try c.decode(Double.self, forKey: .t)
         self.tokens = try c.decode(Int.self, forKey: .tokens)
-        self.sonnet = try c.decode(Bool.self, forKey: .sonnet)
+        self.family = try c.decodeIfPresent(String.self, forKey: .family) ?? ""
         self.cost = try c.decode(Double.self, forKey: .cost)
         self.project = try c.decode(String.self, forKey: .project)
         self.id = try c.decodeIfPresent(String.self, forKey: .id)
@@ -33,7 +36,9 @@ struct StoredEvent: Codable, Equatable {
 struct AggregationSnapshot {
     var fiveHourTokens: Int
     var sevenDayTokens: Int
-    var sevenDaySonnetTokens: Int
+    /// 7-day totals split by model family, so a scoped per-model window can show real
+    /// numbers instead of a zero.
+    var sevenDayByFamily: [String: (tokens: Int, cost: Double)]
 
     var fiveHourCost: Double
     var sevenDayCost: Double
@@ -117,7 +122,7 @@ final class JSONLAggregator {
                 bucket.append(StoredEvent(
                     t: t,
                     tokens: evt.usage.utilizationTokens,
-                    sonnet: evt.model.lowercased().contains("sonnet"),
+                    family: ModelFamily.of(evt.model),
                     cost: Pricing.cost(model: evt.model, usage: evt.usage),
                     project: evt.cwd,
                     id: evt.dedupeKey
@@ -146,7 +151,8 @@ final class JSONLAggregator {
         let halfHour: TimeInterval = 1800
         let nowT = now.timeIntervalSince1970
 
-        var fiveHourTokens = 0, sevenDayTokens = 0, sevenDaySonnetTokens = 0
+        var fiveHourTokens = 0, sevenDayTokens = 0
+        var byFamily: [String: (tokens: Int, cost: Double)] = [:]
         var fiveHourCost = 0.0, sevenDayCost = 0.0
         var earliest5h: Double?, earliest7d: Double?
         var halfHourTokens = 0
@@ -171,7 +177,11 @@ final class JSONLAggregator {
             sevenDayTokens += e.tokens
             sevenDayCost   += e.cost
             if earliest7d == nil || e.t < earliest7d! { earliest7d = e.t }
-            if e.sonnet { sevenDaySonnetTokens += e.tokens }
+            if !e.family.isEmpty {
+                var f = byFamily[e.family] ?? (0, 0)
+                f.tokens += e.tokens; f.cost += e.cost
+                byFamily[e.family] = f
+            }
             if age <= halfHour { halfHourTokens += e.tokens }
 
             perProjectTokens[e.project, default: 0] += e.tokens
@@ -197,7 +207,7 @@ final class JSONLAggregator {
         return AggregationSnapshot(
             fiveHourTokens: fiveHourTokens,
             sevenDayTokens: sevenDayTokens,
-            sevenDaySonnetTokens: sevenDaySonnetTokens,
+            sevenDayByFamily: byFamily,
             fiveHourCost: fiveHourCost,
             sevenDayCost: sevenDayCost,
             earliestInFiveHour: earliest5h.map(Date.init(timeIntervalSince1970:)),

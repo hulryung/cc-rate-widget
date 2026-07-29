@@ -65,7 +65,7 @@ final class JSONLAggregatorTests: XCTestCase {
         var events = try store.readEvents()
         let path = try XCTUnwrap(events.keys.first)
         events[path] = events[path]!.map {
-            StoredEvent(t: $0.t, tokens: $0.tokens, sonnet: $0.sonnet, cost: 0,
+            StoredEvent(t: $0.t, tokens: $0.tokens, family: $0.family, cost: 0,
                         project: $0.project, id: $0.id)
         }
         try store.writeEvents(events)
@@ -126,7 +126,45 @@ final class JSONLAggregatorTests: XCTestCase {
             assistantLine(ts: ts, cwd: "/p", model: "claude-sonnet-4-6", inTok: 200, outTok: 0) + "\n")
         let snap = try aggregator.aggregate(now: now)
         XCTAssertEqual(snap.sevenDayTokens, 300)
-        XCTAssertEqual(snap.sevenDaySonnetTokens, 200)
+        XCTAssertEqual(snap.sevenDayByFamily["sonnet"]?.tokens, 200)
+    }
+
+    /// Every family is counted, not just Sonnet. A `sonnet: Bool` flag discarded the rest,
+    /// so Anthropic's scoped "Weekly · Fable" window had no local tokens and showed 0.
+    func test_aggregate_splitsAllFamiliesNotJustSonnet() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-3600))
+        writeFile("p/s.jsonl",
+            assistantLine(ts: ts, cwd: "/p", model: "claude-fable-5",   inTok: 400, outTok: 0) + "\n" +
+            assistantLine(ts: ts, cwd: "/p", model: "claude-opus-4-8",  inTok: 100, outTok: 0) + "\n" +
+            assistantLine(ts: ts, cwd: "/p", model: "claude-sonnet-5",  inTok: 200, outTok: 0) + "\n")
+        let snap = try aggregator.aggregate(now: now)
+        XCTAssertEqual(snap.sevenDayByFamily["fable"]?.tokens, 400)
+        XCTAssertEqual(snap.sevenDayByFamily["opus"]?.tokens, 100)
+        XCTAssertEqual(snap.sevenDayByFamily["sonnet"]?.tokens, 200)
+        XCTAssertEqual(snap.sevenDayTokens, 700)
+    }
+
+    /// Family cost is tracked alongside tokens so a scoped window can show dollars too.
+    func test_aggregate_familyCarriesCost() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-3600))
+        writeFile("p/s.jsonl", assistantLine(ts: ts, cwd: "/p", model: "claude-fable-5",
+                                             inTok: 1_000_000, outTok: 0) + "\n")
+        let snap = try aggregator.aggregate(now: now)
+        XCTAssertEqual(snap.sevenDayByFamily["fable"]?.cost ?? 0, 10.0, accuracy: 0.0001)
+    }
+
+    /// An unrecognised model contributes to the totals but not to any family bucket —
+    /// better than inventing a family that no window will ever match.
+    func test_aggregate_unknownFamily_isNotBucketed() throws {
+        let now = Date()
+        let ts = AggTestISOFormatter.shared.string(from: now.addingTimeInterval(-3600))
+        writeFile("p/s.jsonl", assistantLine(ts: ts, cwd: "/p", model: "<synthetic>",
+                                             inTok: 50, outTok: 0) + "\n")
+        let snap = try aggregator.aggregate(now: now)
+        XCTAssertEqual(snap.sevenDayTokens, 50)
+        XCTAssertTrue(snap.sevenDayByFamily.isEmpty)
     }
 
     func test_aggregate_perProject_mergesAcrossFiles() throws {
@@ -251,7 +289,7 @@ final class JSONLAggregatorTests: XCTestCase {
         let pastTotals = [100, 200, 300, 400, 5000]   // P90 (nearest-rank) → 5000
         for (i, total) in pastTotals.enumerated() {
             let t = nowT - Double(i + 1) * blockLen   // each in a distinct earlier block
-            events.append(StoredEvent(t: t, tokens: total, sonnet: false, cost: 0, project: "/p", id: "b\(i)"))
+            events.append(StoredEvent(t: t, tokens: total, family: "opus", cost: 0, project: "/p", id: "b\(i)"))
         }
         let snap = JSONLAggregator.computeSnapshot(events: events, now: now)
         XCTAssertNotNil(snap.typicalFiveHourPeak)
@@ -262,7 +300,7 @@ final class JSONLAggregatorTests: XCTestCase {
         let now = Date()
         let nowT = now.timeIntervalSince1970
         let events = [
-            StoredEvent(t: nowT - 6 * 3600, tokens: 100, sonnet: false, cost: 0, project: "/p", id: "x"),
+            StoredEvent(t: nowT - 6 * 3600, tokens: 100, family: "opus", cost: 0, project: "/p", id: "x"),
         ]
         XCTAssertNil(JSONLAggregator.computeSnapshot(events: events, now: now).typicalFiveHourPeak)
     }
@@ -272,14 +310,14 @@ final class JSONLAggregatorTests: XCTestCase {
         let now = Date()
         let nowT = now.timeIntervalSince1970
         let events = [
-            StoredEvent(t: nowT - 60,         tokens: 100, sonnet: false, cost: 0.1, project: "/a"),
-            StoredEvent(t: nowT - 6 * 3600,   tokens: 200, sonnet: true,  cost: 0.2, project: "/a"), // outside 5h, in 7d
-            StoredEvent(t: nowT - 8 * 86400,  tokens: 999, sonnet: false, cost: 9.9, project: "/a"), // outside 7d
+            StoredEvent(t: nowT - 60,         tokens: 100, family: "opus", cost: 0.1, project: "/a"),
+            StoredEvent(t: nowT - 6 * 3600,   tokens: 200, family: "sonnet",  cost: 0.2, project: "/a"), // outside 5h, in 7d
+            StoredEvent(t: nowT - 8 * 86400,  tokens: 999, family: "opus", cost: 9.9, project: "/a"), // outside 7d
         ]
         let snap = JSONLAggregator.computeSnapshot(events: events, now: now)
         XCTAssertEqual(snap.fiveHourTokens, 100)
         XCTAssertEqual(snap.sevenDayTokens, 300)
-        XCTAssertEqual(snap.sevenDaySonnetTokens, 200)
+        XCTAssertEqual(snap.sevenDayByFamily["sonnet"]?.tokens, 200)
     }
 }
 

@@ -95,3 +95,32 @@ final class PricingTests: XCTestCase {
         XCTAssertEqual(usage.utilizationTokens, 175)
     }
 }
+
+final class ModelFamilyTests: XCTestCase {
+    func test_of_mapsCurrentModelIDs() {
+        XCTAssertEqual(ModelFamily.of("claude-fable-5"), "fable")
+        XCTAssertEqual(ModelFamily.of("claude-opus-4-8"), "opus")
+        XCTAssertEqual(ModelFamily.of("claude-sonnet-5"), "sonnet")
+        XCTAssertEqual(ModelFamily.of("claude-haiku-4-5-20251001"), "haiku")
+        XCTAssertEqual(ModelFamily.of("sonnet"), "sonnet")
+    }
+
+    /// A future version must still land in its family — the same drift that left the
+    /// Claude 5 generation unpriced.
+    func test_of_toleratesUnknownVersions() {
+        XCTAssertEqual(ModelFamily.of("claude-opus-9"), "opus")
+        XCTAssertEqual(ModelFamily.of("claude-fable-12-turbo"), "fable")
+    }
+
+    func test_of_unknownModel_isEmpty() {
+        XCTAssertEqual(ModelFamily.of("<synthetic>"), "")
+        XCTAssertEqual(ModelFamily.of("gpt-4o"), "")
+    }
+
+    /// Anthropic labels the scoped window "Fable"; the store keys on "fable".
+    func test_key_mapsAnthropicDisplayNames() {
+        XCTAssertEqual(ModelFamily.key(forDisplayName: "Fable"), "fable")
+        XCTAssertEqual(ModelFamily.key(forDisplayName: "Opus"), "opus")
+        XCTAssertEqual(ModelFamily.key(forDisplayName: "Something Else"), "")
+    }
+}

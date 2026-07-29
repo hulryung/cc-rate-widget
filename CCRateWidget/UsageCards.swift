@@ -23,11 +23,15 @@ struct HeroCard: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: Metric.tight) {
+                // A window we can't measure locally shows its percentage alone. Printing
+                // "0 tok" would read as "you used nothing", which is a different claim.
+                if cat.tokens > 0 {
                 Text(UsageFormat.tokens(cat.tokens))
                     .font(compact ? AppType.metric : AppType.hero)
                     .contentTransition(.numericText())
                     .animation(.easeOut(duration: 0.2), value: cat.tokens)
                 Text("tok").font(AppType.detail).foregroundStyle(.secondary)
+                }
                 Spacer()
                 if cat.cost > 0 {
                     Text(UsageFormat.cost(cat.cost))
@@ -76,11 +80,13 @@ struct StatCard: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: Metric.gutter) {
-                Text(UsageFormat.tokens(cat.tokens))
-                    .font(AppType.metric)
-                    .contentTransition(.numericText())
-                    .animation(.easeOut(duration: 0.2), value: cat.tokens)
-                Text("tok").font(AppType.detail).foregroundStyle(.secondary)
+                if cat.tokens > 0 {
+                    Text(UsageFormat.tokens(cat.tokens))
+                        .font(AppType.metric)
+                        .contentTransition(.numericText())
+                        .animation(.easeOut(duration: 0.2), value: cat.tokens)
+                    Text("tok").font(AppType.detail).foregroundStyle(.secondary)
+                }
                 Spacer()
                 if cat.cost > 0 {
                     Text(UsageFormat.cost(cat.cost))

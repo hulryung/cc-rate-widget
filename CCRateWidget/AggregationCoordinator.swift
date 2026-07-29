@@ -100,10 +100,14 @@ final class AggregationCoordinator: ObservableObject {
             UsageWindow(id: RateData.weeklyID, title: "Weekly", subtitle: "7 days", data: localWeekly),
             UsageWindow(id: RateData.sessionID, title: "Session", subtitle: "5 hours", data: localSession),
         ]
-        if snap.sevenDaySonnetTokens > 0 {
+        // Without official data there are no per-model limits to report against, but the
+        // per-family totals are still worth showing. Largest first.
+        for (family, totals) in snap.sevenDayByFamily.sorted(by: { $0.value.tokens > $1.value.tokens })
+        where totals.tokens > 0 {
             windows.append(UsageWindow(
-                id: "weekly_sonnet_local", title: "Weekly · Sonnet", subtitle: "7 days",
-                data: cat(tokens: snap.sevenDaySonnetTokens, cost: 0,
+                id: "weekly_family_\(family)",
+                title: "Weekly · \(family.capitalized)", subtitle: "7 days",
+                data: cat(tokens: totals.tokens, cost: totals.cost,
                           earliest: snap.earliestInSevenDay, window: 7 * 86400,
                           limit: nil, kind: nil)))
         }
@@ -127,11 +131,20 @@ final class AggregationCoordinator: ObservableObject {
 
             /// Local tokens and dollars for the windows we can measure ourselves. A scoped
             /// per-model window has no local counterpart, so it carries the percentage only.
-            func localData(for id: String) -> CategoryData? {
+            func localData(for id: String, scope: String?) -> CategoryData? {
                 switch id {
                 case RateData.sessionID: return localSession
                 case RateData.weeklyID:  return localWeekly
-                default:                 return nil
+                default:
+                    // A scoped window ("Weekly · Fable") does have local numbers — we
+                    // measure every family from the same logs, we just have no limit to
+                    // divide by. Showing them beats rendering 0.
+                    guard let scope else { return nil }
+                    let key = ModelFamily.key(forDisplayName: scope)
+                    guard let totals = snap.sevenDayByFamily[key], totals.tokens > 0 else { return nil }
+                    return cat(tokens: totals.tokens, cost: totals.cost,
+                               earliest: snap.earliestInSevenDay, window: 7 * 86400,
+                               limit: nil, kind: nil)
                 }
             }
 
@@ -141,7 +154,9 @@ final class AggregationCoordinator: ObservableObject {
                 // are cheap and did move since the last keychain read.
                 windows = prev.windows.map { w in
                     guard let u = w.data.officialUtilization else { return w }
-                    let base = localData(for: w.id) ?? CategoryData(tokens: 0, cost: 0, resetsAt: nil)
+                    // The id carries the scope label after the colon ("weekly_scoped:Fable").
+                    let scope = w.id.split(separator: ":", maxSplits: 1).dropFirst().first.map(String.init)
+                    let base = localData(for: w.id, scope: scope) ?? CategoryData(tokens: 0, cost: 0, resetsAt: nil)
                     var out = w
                     out.data = base.withOfficial(u, resetsAt: w.data.resetsAt)
                     return out
@@ -161,7 +176,8 @@ final class AggregationCoordinator: ObservableObject {
                 // to decide; we attach the numbers we measured where a window maps to ours.
                 if let off = official, !off.limits.isEmpty {
                     windows = off.limits.map { limit in
-                        let base = localData(for: limit.id) ?? CategoryData(tokens: 0, cost: 0, resetsAt: nil)
+                        let base = localData(for: limit.id, scope: limit.scopeLabel)
+                            ?? CategoryData(tokens: 0, cost: 0, resetsAt: nil)
                         return UsageWindow(
                             id: limit.id,
                             title: limit.title,

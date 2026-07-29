@@ -15,7 +15,7 @@ final class LocalStore {
     /// Bump when `StoredEvent`'s shape, JSONL parsing, or the cost model changes. Stored
     /// events carry a precomputed cost, so such a fix cannot repair them in place — the
     /// aggregator reacts to a version change by discarding the store and re-reading.
-    static let currentSchemaVersion = 3
+    static let currentSchemaVersion = 4
 
     private let containerURL: URL
     private let encoder: JSONEncoder = {
