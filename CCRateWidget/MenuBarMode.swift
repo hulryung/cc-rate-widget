@@ -41,13 +41,13 @@ final class MenuBarMode {
 
     private func update(_ rate: RateData?) {
         guard let button = statusItem?.button else { return }
-        guard let rate, rate.status != .noLocalData else {
+        guard let rate, rate.status != .noLocalData, let weekly = rate.weekly?.data else {
             button.attributedTitle = NSAttributedString(string: "")
             return
         }
         // One labelled number. Two unlabelled percentages ("2%/22%") made the reader
         // remember which came first; the weekly window is the one worth a glance.
-        if let u = rate.weekly.utilization {
+        if let u = weekly.utilization {
             button.attributedTitle = NSAttributedString(
                 string: " \(Int(u * 100))%",
                 attributes: [
@@ -56,7 +56,7 @@ final class MenuBarMode {
                 ])
         } else {
             button.attributedTitle = NSAttributedString(
-                string: " \(UsageFormat.tokens(rate.weekly.tokens))",
+                string: " \(UsageFormat.tokens(weekly.tokens))",
                 attributes: [
                     .foregroundColor: NSColor.labelColor,
                     .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular),

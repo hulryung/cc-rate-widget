@@ -84,10 +84,28 @@ struct CategoryData {
     }
 }
 
+/// One row of the display: a rolling window plus whatever numbers we have for it.
+///
+/// The set is not fixed. With official usage on, Anthropic reports the windows itself —
+/// session, an all-model weekly, and zero or more per-model-family windows such as
+/// "Fable" — and which appear varies by account and over time. Hardcoding three windows
+/// meant a scoped one could never show, and a retired one (Sonnet, now reported as null)
+/// kept rendering a meaningless 0%.
+struct UsageWindow: Identifiable, Equatable {
+    let id: String
+    let title: String        // "Weekly", "Weekly · Fable", "Session"
+    let subtitle: String     // "7 days", "5 hours"
+    var data: CategoryData
+
+    static func == (a: UsageWindow, b: UsageWindow) -> Bool {
+        a.id == b.id && a.title == b.title && a.subtitle == b.subtitle
+            && a.data.tokens == b.data.tokens && a.data.cost == b.data.cost
+            && a.data.officialUtilization == b.data.officialUtilization
+    }
+}
+
 struct RateData {
-    let session: CategoryData       // five_hour
-    let weekly: CategoryData        // seven_day
-    let weeklySonnet: CategoryData  // seven_day_sonnet
+    var windows: [UsageWindow]
     let fetchedAt: Date
     let status: OverallStatus
     let source: RateDataSource
@@ -95,20 +113,37 @@ struct RateData {
     var planName: String? = nil           // detected from Claude Code credentials (e.g. "Max 20x")
     var officialFetchedAt: Date? = nil    // when the official % was last read (to throttle keychain reads)
 
+    /// Canonical ids so the menu bar can find the window it wants without matching on
+    /// display text.
+    static let sessionID = "session"
+    static let weeklyID  = "weekly_all"
+
+    /// The all-model weekly window — the one number the menu bar shows. Falls back to any
+    /// weekly window so a response without an explicit all-model entry still reads.
+    var weekly: UsageWindow? {
+        windows.first { $0.id == Self.weeklyID } ?? windows.first { $0.id.hasPrefix("weekly") }
+    }
+    var session: UsageWindow? { windows.first { $0.id == Self.sessionID } }
+
     /// Used when no snapshot exists yet — the app has never run, or the store was cleared.
-    /// Deliberately distinct from `placeholder`: real zeros and `.noLocalData`, so the
-    /// widget shows its setup prompt instead of passing sample numbers off as live usage.
+    /// Real zeros and `.noLocalData`, so the UI shows its setup prompt rather than passing
+    /// sample numbers off as live usage.
     static var unavailable: RateData {
-        let empty = CategoryData(tokens: 0, cost: 0, resetsAt: nil)
-        return RateData(session: empty, weekly: empty, weeklySonnet: empty,
-                        fetchedAt: Date(), status: .noLocalData, source: .noLocalData)
+        RateData(windows: [], fetchedAt: Date(), status: .noLocalData, source: .noLocalData)
     }
 
-    /// Sample data for WidgetKit's gallery preview only. Never render this as real usage.
+    /// Sample data for previews only. Never render this as real usage.
     static let placeholder = RateData(
-        session: CategoryData(tokens: 240_000, cost: 1.20, resetsAt: Date().addingTimeInterval(3600), limitTokens: 1_000_000, limitKind: .typicalPeak),
-        weekly: CategoryData(tokens: 3_800_000, cost: 24.00, resetsAt: Date().addingTimeInterval(86400), limitTokens: 10_000_000, limitKind: .userLimit),
-        weeklySonnet: CategoryData(tokens: 120_000, cost: 0.40, resetsAt: Date().addingTimeInterval(86400)),
+        windows: [
+            UsageWindow(id: weeklyID, title: "Weekly", subtitle: "7 days",
+                        data: CategoryData(tokens: 3_800_000, cost: 24.00,
+                                           resetsAt: Date().addingTimeInterval(86400),
+                                           limitTokens: 10_000_000, limitKind: .userLimit)),
+            UsageWindow(id: sessionID, title: "Session", subtitle: "5 hours",
+                        data: CategoryData(tokens: 240_000, cost: 1.20,
+                                           resetsAt: Date().addingTimeInterval(3600),
+                                           limitTokens: 1_000_000, limitKind: .typicalPeak)),
+        ],
         fetchedAt: Date(),
         status: .active,
         source: .jsonl,

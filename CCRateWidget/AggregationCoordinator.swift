@@ -56,9 +56,8 @@ final class AggregationCoordinator: ObservableObject {
         let now = Date()
 
         guard FileManager.default.fileExists(atPath: root.path) else {
-            let empty = CategoryData(tokens: 0, cost: 0, resetsAt: nil)
-            let r = RateData(session: empty, weekly: empty, weeklySonnet: empty,
-                             fetchedAt: now, status: .noLocalData, source: .noLocalData)
+            let r = RateData(windows: [], fetchedAt: now,
+                             status: .noLocalData, source: .noLocalData)
             try store.writeRate(r)
             return r
         }
@@ -89,19 +88,28 @@ final class AggregationCoordinator: ObservableObject {
         else if let p = snap.typicalFiveHourPeak { sessionLimit = p; sessionKind = .typicalPeak }
         else { sessionLimit = nil; sessionKind = nil }
 
-        var session = cat(tokens: snap.fiveHourTokens, cost: snap.fiveHourCost,
-                          earliest: snap.earliestInFiveHour, window: 5 * 3600,
-                          limit: sessionLimit, kind: sessionKind)
-        var weekly = cat(tokens: snap.sevenDayTokens, cost: snap.sevenDayCost,
-                         earliest: snap.earliestInSevenDay, window: 7 * 86400,
-                         limit: weeklyCap, kind: weeklyCap != nil ? .userLimit : nil)
-        var sonnet = cat(tokens: snap.sevenDaySonnetTokens, cost: 0,
-                         earliest: snap.earliestInSevenDay, window: 7 * 86400,
-                         limit: nil, kind: nil)
+        let localSession = cat(tokens: snap.fiveHourTokens, cost: snap.fiveHourCost,
+                               earliest: snap.earliestInFiveHour, window: 5 * 3600,
+                               limit: sessionLimit, kind: sessionKind)
+        let localWeekly = cat(tokens: snap.sevenDayTokens, cost: snap.sevenDayCost,
+                              earliest: snap.earliestInSevenDay, window: 7 * 86400,
+                              limit: weeklyCap, kind: weeklyCap != nil ? .userLimit : nil)
 
-        // Official Anthropic % (opt-in): overlays the real utilization from Claude Code's
-        // keychain token, so the bars match `/status`. Reading the keychain can raise a
-        // macOS permission prompt, so it happens at most once per throttle window.
+        // Local windows: what we can measure ourselves.
+        var windows: [UsageWindow] = [
+            UsageWindow(id: RateData.weeklyID, title: "Weekly", subtitle: "7 days", data: localWeekly),
+            UsageWindow(id: RateData.sessionID, title: "Session", subtitle: "5 hours", data: localSession),
+        ]
+        if snap.sevenDaySonnetTokens > 0 {
+            windows.append(UsageWindow(
+                id: "weekly_sonnet_local", title: "Weekly · Sonnet", subtitle: "7 days",
+                data: cat(tokens: snap.sevenDaySonnetTokens, cost: 0,
+                          earliest: snap.earliestInSevenDay, window: 7 * 86400,
+                          limit: nil, kind: nil)))
+        }
+
+        // Official Anthropic % (opt-in): reading the keychain can raise a macOS permission
+        // prompt, so it happens at most once per throttle window.
         var source: RateDataSource = .jsonl
         var officialAt: Date? = nil
         let oauthOn = suite.bool(forKey: "oauthEnabled")
@@ -117,15 +125,28 @@ final class AggregationCoordinator: ObservableObject {
             let lastAttempt = prev?.officialFetchedAt
             let withinWindow = lastAttempt.map { now.timeIntervalSince($0) < throttle } ?? false
 
-            if withinWindow, let prev, prev.source == .oauth,
-               let f = prev.session.officialUtilization {
-                official = OfficialUsage(
-                    fiveHour: f,
-                    sevenDay: prev.weekly.officialUtilization ?? 0,
-                    sevenDaySonnet: prev.weeklySonnet.officialUtilization ?? 0,
-                    fiveHourResetsAt: prev.session.resetsAt,
-                    sevenDayResetsAt: prev.weekly.resetsAt
-                )
+            /// Local tokens and dollars for the windows we can measure ourselves. A scoped
+            /// per-model window has no local counterpart, so it carries the percentage only.
+            func localData(for id: String) -> CategoryData? {
+                switch id {
+                case RateData.sessionID: return localSession
+                case RateData.weeklyID:  return localWeekly
+                default:                 return nil
+                }
+            }
+
+            if withinWindow, let prev, prev.source == .oauth, !prev.windows.isEmpty {
+                // Reuse the cached window list verbatim — its titles came from Anthropic
+                // and can't be recomputed from an id — but refresh the local numbers, which
+                // are cheap and did move since the last keychain read.
+                windows = prev.windows.map { w in
+                    guard let u = w.data.officialUtilization else { return w }
+                    let base = localData(for: w.id) ?? CategoryData(tokens: 0, cost: 0, resetsAt: nil)
+                    var out = w
+                    out.data = base.withOfficial(u, resetsAt: w.data.resetsAt)
+                    return out
+                }
+                source = .oauth
                 officialAt = lastAttempt
             } else if withinWindow {
                 // Attempted recently and it didn't work. Stay on local data rather than
@@ -134,17 +155,26 @@ final class AggregationCoordinator: ObservableObject {
             } else {
                 official = OfficialUsage.fetch()   // reads keychain (may prompt the first time)
                 officialAt = now                   // recorded either way
-            }
-            if let off = official {
-                session = session.withOfficial(off.fiveHour, resetsAt: off.fiveHourResetsAt)
-                weekly  = weekly.withOfficial(off.sevenDay, resetsAt: off.sevenDayResetsAt)
-                sonnet  = sonnet.withOfficial(off.sevenDaySonnet, resetsAt: off.sevenDayResetsAt)
-                source  = .oauth
+
+                // Mirror Anthropic's own list rather than a fixed three. It reports scoped
+                // per-model windows (e.g. "Fable") that come and go, so the set is theirs
+                // to decide; we attach the numbers we measured where a window maps to ours.
+                if let off = official, !off.limits.isEmpty {
+                    windows = off.limits.map { limit in
+                        let base = localData(for: limit.id) ?? CategoryData(tokens: 0, cost: 0, resetsAt: nil)
+                        return UsageWindow(
+                            id: limit.id,
+                            title: limit.title,
+                            subtitle: limit.subtitle,
+                            data: base.withOfficial(limit.utilization, resetsAt: limit.resetsAt))
+                    }
+                    source = .oauth
+                }
             }
         }
 
         let rate = RateData(
-            session: session, weekly: weekly, weeklySonnet: sonnet,
+            windows: windows,
             fetchedAt: now,
             status: .active,
             source: source,

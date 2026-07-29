@@ -1,27 +1,49 @@
 import XCTest
 
 final class RateDataFallbackTests: XCTestCase {
-    /// The widget falls back to this when no snapshot is on disk. It must read as
-    /// "no data" — the sample `placeholder` would otherwise be shown as live usage.
+    /// The fallback when no snapshot is on disk. It must read as "no data" — the sample
+    /// `placeholder` would otherwise be shown as live usage.
     func test_unavailable_isEmptyAndFlaggedNoLocalData() {
         let r = RateData.unavailable
         XCTAssertEqual(r.status, .noLocalData)
         XCTAssertEqual(r.source, .noLocalData)
-        XCTAssertEqual(r.session.tokens, 0)
-        XCTAssertEqual(r.weekly.tokens, 0)
-        XCTAssertEqual(r.weeklySonnet.tokens, 0)
-        XCTAssertEqual(r.session.cost, 0)
-        XCTAssertEqual(r.weekly.cost, 0)
-        XCTAssertNil(r.session.utilization)
+        XCTAssertTrue(r.windows.isEmpty)
+        XCTAssertNil(r.weekly)
+        XCTAssertNil(r.session)
         XCTAssertNil(r.planName)
     }
 
-    /// Guards the mistake being fixed: the gallery sample claims to be active usage,
-    /// so it must never be what a data-less widget renders.
+    /// Guards the mistake being fixed: the sample claims to be active usage, so it must
+    /// never be what a data-less surface renders.
     func test_placeholder_isNotMistakenForNoData() {
         XCTAssertEqual(RateData.placeholder.status, .active)
-        XCTAssertGreaterThan(RateData.placeholder.session.tokens, 0)
+        XCTAssertGreaterThan(RateData.placeholder.weekly?.data.tokens ?? 0, 0)
         XCTAssertNotEqual(RateData.placeholder.status, RateData.unavailable.status)
+    }
+
+    /// The menu bar reads one specific window out of a list whose length varies, so the
+    /// lookup must be by id rather than position.
+    func test_weeklyAndSession_foundByIdRegardlessOfOrder() {
+        let cat = CategoryData(tokens: 1, cost: 0, resetsAt: nil)
+        let r = RateData(
+            windows: [
+                UsageWindow(id: "weekly_scoped:Fable", title: "Weekly · Fable", subtitle: "7 days", data: cat),
+                UsageWindow(id: RateData.sessionID, title: "Session", subtitle: "5 hours", data: cat),
+                UsageWindow(id: RateData.weeklyID, title: "Weekly", subtitle: "7 days", data: cat),
+            ],
+            fetchedAt: Date(), status: .active, source: .oauth)
+        XCTAssertEqual(r.weekly?.id, RateData.weeklyID)
+        XCTAssertEqual(r.session?.id, RateData.sessionID)
+    }
+
+    /// With no all-model window, any weekly one is better than showing nothing.
+    func test_weekly_fallsBackToAScopedWindow() {
+        let cat = CategoryData(tokens: 1, cost: 0, resetsAt: nil)
+        let r = RateData(
+            windows: [UsageWindow(id: "weekly_scoped:Fable", title: "Weekly · Fable",
+                                  subtitle: "7 days", data: cat)],
+            fetchedAt: Date(), status: .active, source: .oauth)
+        XCTAssertEqual(r.weekly?.id, "weekly_scoped:Fable")
     }
 }
 
@@ -64,6 +86,6 @@ extension ModelsTests {
     func test_rateData_placeholder_isActiveLocal() {
         XCTAssertEqual(RateData.placeholder.status, .active)
         XCTAssertEqual(RateData.placeholder.source, .jsonl)
-        XCTAssertGreaterThan(RateData.placeholder.weekly.tokens, 0)
+        XCTAssertGreaterThan(RateData.placeholder.weekly?.data.tokens ?? 0, 0)
     }
 }

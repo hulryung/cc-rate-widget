@@ -15,7 +15,7 @@ struct UsagePopover: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metric.group) {
-            if let rate = coordinator.lastSnapshot, rate.status != .noLocalData {
+            if let rate = coordinator.lastSnapshot, rate.status != .noLocalData, !rate.windows.isEmpty {
                 UsageSummary(rate: rate, compact: true)
                 if let projects, !projects.entries.isEmpty {
                     Divider()

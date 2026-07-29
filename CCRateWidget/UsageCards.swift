@@ -7,15 +7,16 @@ import SwiftUI
 
 /// Weekly usage — the number worth planning around, so it gets the largest slot.
 struct HeroCard: View {
-    let cat: CategoryData
+    let window: UsageWindow
     var plan: String? = nil
     var compact: Bool = false
+    private var cat: CategoryData { window.data }
 
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? Metric.tight : Metric.group) {
             HStack(spacing: Metric.gutter) {
-                Text("Weekly").font(AppType.title)
-                Text("7 days").font(AppType.detail).foregroundStyle(.tertiary)
+                Text(window.title).font(AppType.title)
+                Text(window.subtitle).font(AppType.detail).foregroundStyle(.tertiary)
                 Spacer()
                 if let plan { PlanPill(plan) }
                 if let u = cat.utilization { UsageChip(utilization: u) }
@@ -58,10 +59,9 @@ struct HeroCard: View {
 // MARK: - Stat
 
 struct StatCard: View {
-    let label: String
-    let window: String
-    let cat: CategoryData
+    let window: UsageWindow
     var plan: String? = nil
+    private var cat: CategoryData { window.data }
     /// Suppressed when this card's reset is the same instant as the hero's — repeating
     /// "Sun, Jul 26 at 10 PM · 1h left" under all three cards is noise, not information.
     var showsReset: Bool = true
@@ -69,8 +69,8 @@ struct StatCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Metric.tight) {
             HStack(spacing: Metric.gutter) {
-                Text(label).font(AppType.label).foregroundStyle(.secondary)
-                Text(window).font(AppType.micro).foregroundStyle(.tertiary)
+                Text(window.title).font(AppType.label).foregroundStyle(.secondary)
+                Text(window.subtitle).font(AppType.micro).foregroundStyle(.tertiary)
                 Spacer()
                 if let u = cat.utilization { UsageChip(utilization: u) }
             }
@@ -174,24 +174,23 @@ func limitCaption(_ cat: CategoryData, plan: String?) -> String? {
 
 // MARK: - The shared usage body
 
-/// The three cards plus footer, used by every surface. `compact` tightens it for the
-/// popover and HUD, where vertical space is scarcer than in the window.
+/// The window list plus footer, used by the popover. The number of windows is not fixed —
+/// with official usage on it is whatever Anthropic reports, including scoped per-model
+/// windows that come and go.
 struct UsageSummary: View {
     let rate: RateData
     var compact: Bool = false
 
     var body: some View {
-        // Sonnet shares the weekly window, so its reset instant is the hero's. Show it once.
-        let sonnetSharesReset = rate.weeklySonnet.resetsAt == rate.weekly.resetsAt
-
         VStack(alignment: .leading, spacing: compact ? Metric.group : Metric.section) {
-            HeroCard(cat: rate.weekly, plan: rate.planName, compact: compact)
-            HStack(alignment: .top, spacing: compact ? Metric.group : Metric.section) {
-                StatCard(label: "Session", window: "5 hours", cat: rate.session, plan: rate.planName)
-                StatCard(label: "Sonnet", window: "7 days", cat: rate.weeklySonnet, plan: rate.planName,
-                         showsReset: !sonnetSharesReset)
+            ForEach(Array(rate.windows.enumerated()), id: \.element.id) { index, window in
+                if index == 0 {
+                    HeroCard(window: window, plan: rate.planName, compact: compact)
+                } else {
+                    StatCard(window: window, plan: rate.planName,
+                             showsReset: window.data.resetsAt != rate.windows[0].data.resetsAt)
+                }
             }
-            .fixedSize(horizontal: false, vertical: true)   // equal heights
             FooterLine(rate: rate)
         }
     }

@@ -1,18 +1,54 @@
 import Foundation
 import Security
 
-/// Anthropic's official rate-limit utilization, the same numbers Claude Code's `/status`
+/// One rate-limit window as Anthropic reports it.
+///
+/// The set is not fixed. Alongside the session and all-model weekly windows, the API
+/// returns zero or more *scoped* windows — a per-model-family limit such as "Fable" —
+/// and which ones appear varies by account and over time. `/status` renders exactly the
+/// windows present here, so the app does too rather than hardcoding a list.
+struct OfficialLimit: Equatable, Identifiable {
+    /// "session", "weekly_all", "weekly_scoped", or something newer.
+    let kind: String
+    /// Model family for a scoped window ("Fable"); nil when the window covers everything.
+    let scopeLabel: String?
+    let utilization: Double      // 0…1
+    let resetsAt: Date?
+    /// Anthropic's own assessment — "normal", and louder values we pass through untouched.
+    let severity: String?
+
+    var id: String { scopeLabel.map { "\(kind):\($0)" } ?? kind }
+
+    /// "Weekly · Fable", "Weekly", "Session".
+    var title: String {
+        let base: String
+        switch kind {
+        case "session":                     base = "Session"
+        case "weekly_all", "weekly_scoped": base = "Weekly"
+        default:                            base = kind.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+        return scopeLabel.map { "\(base) · \($0)" } ?? base
+    }
+
+    var subtitle: String {
+        kind == "session" ? "5 hours" : "7 days"
+    }
+}
+
+/// Anthropic's official rate-limit utilization — the same numbers Claude Code's `/status`
 /// shows. Obtained by reading Claude Code's own (keychain-stored, auto-refreshed) OAuth
 /// token and querying the usage endpoint. We never refresh the token ourselves —
 /// refreshing could rotate Claude Code's refresh token and break its login.
 struct OfficialUsage: Equatable {
-    let fiveHour: Double         // 0…1
-    let sevenDay: Double
-    let sevenDaySonnet: Double
-    let fiveHourResetsAt: Date?
-    let sevenDayResetsAt: Date?
+    let limits: [OfficialLimit]
 
     private static let endpoint = "https://api.anthropic.com/api/oauth/usage"
+
+    /// The all-model weekly window, used for the menu-bar percentage.
+    var weekly: OfficialLimit? {
+        limits.first { $0.kind == "weekly_all" } ?? limits.first { $0.kind.hasPrefix("weekly") }
+    }
+    var session: OfficialLimit? { limits.first { $0.kind == "session" } }
 
     /// Synchronous (safe to call from the aggregator's background queue). Returns nil on any
     /// failure: OAuth disabled, no/expired keychain token, access denied, or non-200.
@@ -44,22 +80,45 @@ struct OfficialUsage: Equatable {
     /// Pure parse of the usage JSON. Exposed for testing.
     static func parse(_ data: Data) -> OfficialUsage? {
         guard let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        guard o["five_hour"] != nil || o["seven_day"] != nil else { return nil }
-        func util(_ key: String) -> Double {
-            guard let v = (o[key] as? [String: Any])?["utilization"] as? Double else { return 0 }
-            return v / 100.0
+
+        // Preferred: the self-describing `limits` array, which is what `/status` renders
+        // and the only place scoped per-model windows appear.
+        if let raw = o["limits"] as? [[String: Any]] {
+            let parsed = raw.compactMap(limit(from:))
+            if !parsed.isEmpty { return OfficialUsage(limits: parsed) }
         }
-        func reset(_ key: String) -> Date? {
-            guard let s = (o[key] as? [String: Any])?["resets_at"] as? String else { return nil }
-            return iso.date(from: s) ?? isoNoFrac.date(from: s)
+
+        // Fallback for older responses that only had flat per-window objects. Kept because
+        // the array is undocumented and could vanish as easily as it appeared.
+        let legacy: [(String, String?)] = [
+            ("five_hour", nil), ("seven_day", nil),
+            ("seven_day_opus", "Opus"), ("seven_day_sonnet", "Sonnet"),
+        ]
+        var out: [OfficialLimit] = []
+        for (key, scope) in legacy {
+            guard let obj = o[key] as? [String: Any],
+                  let util = obj["utilization"] as? Double else { continue }
+            out.append(OfficialLimit(
+                kind: key == "five_hour" ? "session" : (scope == nil ? "weekly_all" : "weekly_scoped"),
+                scopeLabel: scope,
+                utilization: util / 100.0,
+                resetsAt: (obj["resets_at"] as? String).flatMap(date(from:)),
+                severity: nil))
         }
-        return OfficialUsage(
-            fiveHour: util("five_hour"),
-            sevenDay: util("seven_day"),
-            sevenDaySonnet: util("seven_day_sonnet"),
-            fiveHourResetsAt: reset("five_hour"),
-            sevenDayResetsAt: reset("seven_day")
-        )
+        return out.isEmpty ? nil : OfficialUsage(limits: out)
+    }
+
+    private static func limit(from raw: [String: Any]) -> OfficialLimit? {
+        guard let kind = raw["kind"] as? String else { return nil }
+        // `percent` arrives as a whole number, but don't assume the encoding.
+        guard let percent = (raw["percent"] as? NSNumber)?.doubleValue else { return nil }
+        let scopeLabel = ((raw["scope"] as? [String: Any])?["model"] as? [String: Any])?["display_name"] as? String
+        return OfficialLimit(
+            kind: kind,
+            scopeLabel: scopeLabel,
+            utilization: percent / 100.0,
+            resetsAt: (raw["resets_at"] as? String).flatMap(date(from:)),
+            severity: raw["severity"] as? String)
     }
 
     /// Reads Claude Code's keychain credentials and returns the access token only if it's
@@ -89,6 +148,10 @@ struct OfficialUsage: Equatable {
         if let expiresMs = oauth["expiresAt"] as? Double,
            Date().timeIntervalSince1970 * 1000 >= expiresMs { return nil }   // expired → fall back
         return token
+    }
+
+    private static func date(from s: String) -> Date? {
+        iso.date(from: s) ?? isoNoFrac.date(from: s)
     }
 
     private static let iso: ISO8601DateFormatter = {

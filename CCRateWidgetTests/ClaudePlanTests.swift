@@ -89,10 +89,63 @@ final class OfficialUsageTests: XCTestCase {
          "extra_usage":{"is_enabled":true,"monthly_limit":10000,"used_credits":0.0,"utilization":null}}
         """#
         let u = try XCTUnwrap(OfficialUsage.parse(Data(json.utf8)))
-        XCTAssertEqual(u.fiveHour, 0.20, accuracy: 0.0001)
-        XCTAssertEqual(u.sevenDay, 0.18, accuracy: 0.0001)
-        XCTAssertEqual(u.sevenDaySonnet, 0.01, accuracy: 0.0001)
-        XCTAssertNotNil(u.fiveHourResetsAt)
+        XCTAssertEqual(u.session?.utilization ?? 0, 0.20, accuracy: 0.0001)
+        XCTAssertEqual(u.weekly?.utilization ?? 0, 0.18, accuracy: 0.0001)
+        XCTAssertNotNil(u.session?.resetsAt)
+
+        let sonnet = try XCTUnwrap(u.limits.first { $0.scopeLabel == "Sonnet" })
+        XCTAssertEqual(sonnet.utilization, 0.01, accuracy: 0.0001)
+        // A null family is absent, not a zero — rendering 0% for a limit Anthropic isn't
+        // reporting is what made the Sonnet bar meaningless.
+        XCTAssertNil(u.limits.first { $0.scopeLabel == "Opus" })
+    }
+
+    /// The current response shape: a self-describing list, including scoped per-model
+    /// windows such as Fable that the flat fields never carried.
+    func test_parse_limitsArray_isDynamic() throws {
+        let json = #"""
+        {"five_hour":null,"seven_day":null,"seven_day_sonnet":null,
+         "limits":[
+           {"kind":"session","group":"session","percent":24,"severity":"normal",
+            "resets_at":"2026-07-29T01:59:59.825202+00:00","scope":null,"is_active":false},
+           {"kind":"weekly_all","group":"weekly","percent":71,"severity":"normal",
+            "resets_at":"2026-07-29T12:59:59.825228+00:00","scope":null,"is_active":true},
+           {"kind":"weekly_scoped","group":"weekly","percent":23,"severity":"normal",
+            "resets_at":"2026-07-29T12:59:59.825518+00:00",
+            "scope":{"model":{"id":null,"display_name":"Fable"},"surface":null},"is_active":false}]}
+        """#
+        let u = try XCTUnwrap(OfficialUsage.parse(Data(json.utf8)))
+        XCTAssertEqual(u.limits.count, 3)
+        XCTAssertEqual(u.session?.utilization ?? 0, 0.24, accuracy: 0.0001)
+        XCTAssertEqual(u.weekly?.utilization ?? 0, 0.71, accuracy: 0.0001)
+
+        let fable = try XCTUnwrap(u.limits.first { $0.scopeLabel == "Fable" })
+        XCTAssertEqual(fable.utilization, 0.23, accuracy: 0.0001)
+        XCTAssertEqual(fable.title, "Weekly · Fable")
+        XCTAssertEqual(fable.id, "weekly_scoped:Fable")
+        XCTAssertNotNil(fable.resetsAt)
+    }
+
+    /// The array wins when both shapes are present — the flat fields are now all null even
+    /// when real limits exist, so preferring them would report nothing.
+    func test_parse_prefersLimitsArrayOverFlatFields() throws {
+        let json = #"""
+        {"seven_day":{"utilization":99.0,"resets_at":"2026-06-03T13:00:00Z"},
+         "limits":[{"kind":"weekly_all","percent":12,"resets_at":"2026-07-29T12:59:59Z","scope":null}]}
+        """#
+        let u = try XCTUnwrap(OfficialUsage.parse(Data(json.utf8)))
+        XCTAssertEqual(u.limits.count, 1)
+        XCTAssertEqual(u.weekly?.utilization ?? 0, 0.12, accuracy: 0.0001)
+    }
+
+    /// An unknown future kind must still render rather than being dropped.
+    func test_parse_unknownKind_survives() throws {
+        let json = #"""
+        {"limits":[{"kind":"monthly_all","percent":8,"resets_at":"2026-08-01T00:00:00Z","scope":null}]}
+        """#
+        let u = try XCTUnwrap(OfficialUsage.parse(Data(json.utf8)))
+        XCTAssertEqual(u.limits.count, 1)
+        XCTAssertEqual(u.limits[0].title, "Monthly All")
     }
 
     func test_parse_garbageReturnsNil() {

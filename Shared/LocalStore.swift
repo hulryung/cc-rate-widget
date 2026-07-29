@@ -15,7 +15,7 @@ final class LocalStore {
     /// Bump when `StoredEvent`'s shape, JSONL parsing, or the cost model changes. Stored
     /// events carry a precomputed cost, so such a fix cannot repair them in place — the
     /// aggregator reacts to a version change by discarding the store and re-reading.
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 3
 
     private let containerURL: URL
     private let encoder: JSONEncoder = {
@@ -150,9 +150,7 @@ private struct SchemaMarker: Codable { let version: Int }
 // MARK: - On-disk RateData representation
 
 private struct PersistedRate: Codable {
-    let session: Cat
-    let weekly: Cat
-    let weeklySonnet: Cat
+    let windows: [Win]
     let fetchedAt: Double
     let status: String
     let source: String
@@ -160,6 +158,13 @@ private struct PersistedRate: Codable {
     var burnTokensPerSecond: Double?
     var planName: String?
     var officialFetchedAt: Double?
+
+    struct Win: Codable {
+        let id: String
+        let title: String
+        let subtitle: String
+        let cat: Cat
+    }
 
     struct Cat: Codable {
         let tokens: Int
@@ -198,9 +203,7 @@ private struct PersistedRate: Codable {
     }
 
     init(from r: RateData) {
-        self.session = Cat(r.session)
-        self.weekly = Cat(r.weekly)
-        self.weeklySonnet = Cat(r.weeklySonnet)
+        self.windows = r.windows.map { Win(id: $0.id, title: $0.title, subtitle: $0.subtitle, cat: Cat($0.data)) }
         self.fetchedAt = r.fetchedAt.timeIntervalSince1970
         self.status = r.status.rawValue
         self.source = r.source.rawValue
@@ -211,9 +214,7 @@ private struct PersistedRate: Codable {
 
     func toRateData() -> RateData {
         RateData(
-            session: session.category,
-            weekly: weekly.category,
-            weeklySonnet: weeklySonnet.category,
+            windows: windows.map { UsageWindow(id: $0.id, title: $0.title, subtitle: $0.subtitle, data: $0.cat.category) },
             fetchedAt: Date(timeIntervalSince1970: fetchedAt),
             status: OverallStatus(rawValue: status) ?? .unknown,
             source: RateDataSource(rawValue: source) ?? .jsonl,
