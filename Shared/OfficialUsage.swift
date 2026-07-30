@@ -53,28 +53,77 @@ struct OfficialUsage: Equatable {
     /// Synchronous (safe to call from the aggregator's background queue). Returns nil on any
     /// failure: OAuth disabled, no/expired keychain token, access denied, or non-200.
     static func fetch() -> OfficialUsage? {
-        guard let token = freshAccessToken(),
-              let url = URL(string: endpoint) else { return nil }
+        guard let token = accessToken() else { return nil }
+        switch request(with: token) {
+        case .success(let usage):
+            return usage
+        case .unauthorized:
+            // Claude Code rotates its own token; ours went stale. This is the only case
+            // worth paying a second keychain read for.
+            clearCachedToken()
+            guard let fresh = accessToken() else { return nil }
+            if case .success(let usage) = request(with: fresh) { return usage }
+            return nil
+        case .failed:
+            return nil
+        }
+    }
+
+    private enum Outcome { case success(OfficialUsage), unauthorized, failed }
+
+    private static func request(with token: String) -> Outcome {
+        guard let url = URL(string: endpoint) else { return .failed }
 
         var req = URLRequest(url: url, timeoutInterval: 10)
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
         req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
-        var out: OfficialUsage?
+        var out = Outcome.failed
         let sem = DispatchSemaphore(value: 0)
         URLSession.shared.dataTask(with: req) { data, resp, _ in
             defer { sem.signal() }
-            guard let http = resp as? HTTPURLResponse, http.statusCode == 200, let data else {
-                if let http = resp as? HTTPURLResponse {
-                    NSLog("[OfficialUsage] HTTP \(http.statusCode)")
-                }
+            guard let http = resp as? HTTPURLResponse else { return }
+            guard http.statusCode == 200, let data else {
+                NSLog("[OfficialUsage] HTTP \(http.statusCode)")
+                if http.statusCode == 401 || http.statusCode == 403 { out = .unauthorized }
                 return
             }
-            out = parse(data)
+            out = parse(data).map(Outcome.success) ?? .failed
         }.resume()
         _ = sem.wait(timeout: .now() + 12)
         return out
+    }
+
+    // MARK: - Token cache
+
+    /// Reading the Keychain is what raises the macOS permission prompt, so it must happen
+    /// as rarely as the token's own lifetime allows — not on every poll.
+    ///
+    /// This used to be read on every official-usage refresh. With a 15-minute refresh and
+    /// an app that stays resident, that was ~96 Keychain reads a day, and any of them can
+    /// prompt. The token is valid for hours, so hold it in memory for the process and go
+    /// back to the Keychain only when it expires or the server rejects it.
+    private static let tokenLock = NSLock()
+    nonisolated(unsafe) private static var cachedToken: (value: String, expiresAt: Date?)?
+
+    private static func accessToken() -> String? {
+        tokenLock.lock()
+        defer { tokenLock.unlock() }
+
+        if let cached = cachedToken {
+            let stillValid = cached.expiresAt.map { $0 > Date().addingTimeInterval(60) } ?? true
+            if stillValid { return cached.value }
+        }
+        guard let read = readKeychain() else { return nil }
+        cachedToken = read
+        return read.value
+    }
+
+    private static func clearCachedToken() {
+        tokenLock.lock()
+        cachedToken = nil
+        tokenLock.unlock()
     }
 
     /// Pure parse of the usage JSON. Exposed for testing.
@@ -128,7 +177,7 @@ struct OfficialUsage: Equatable {
     /// `~/.claude/.credentials.json`, so the Keychain is the only remaining source for the
     /// plan label — and this is the one place already paying for a Keychain read, so
     /// piggybacking here avoids adding a second macOS permission prompt.
-    private static func freshAccessToken() -> String? {
+    private static func readKeychain() -> (value: String, expiresAt: Date?)? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: "Claude Code-credentials",
@@ -145,9 +194,9 @@ struct OfficialUsage: Equatable {
         // The tier stays meaningful even when the token itself has expired.
         ClaudePlan.remember(tier: oauth["rateLimitTier"] as? String)
 
-        if let expiresMs = oauth["expiresAt"] as? Double,
-           Date().timeIntervalSince1970 * 1000 >= expiresMs { return nil }   // expired → fall back
-        return token
+        let expiresAt = (oauth["expiresAt"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) }
+        if let expiresAt, expiresAt <= Date() { return nil }   // expired → fall back to local
+        return (token, expiresAt)
     }
 
     private static func date(from s: String) -> Date? {
