@@ -16,6 +16,7 @@ final class MenuBarMode {
     private var cancellable: AnyCancellable?
     private var dismissMonitor: Any?
     private var outsideClickMonitor: Any?
+    private var resignObserver: Any?
 
     private init() {}
 
@@ -91,41 +92,67 @@ final class MenuBarMode {
         // showed up as light cards inside a dark popover until the next redraw.
         hosting.view.appearance = NSApp.effectiveAppearance
 
+        // Take focus before showing. An accessory app doesn't activate when its status item
+        // is clicked, and a *local* event monitor only sees events routed to this app — so
+        // Esc, ⌘R and ⌘, were all dead until you had clicked into the popover, which
+        // activated the app as a side effect. The popover is a surface you interact with, so
+        // taking focus is the right trade; the ⌥⌘U HUD is a glance and deliberately doesn't.
+        //
+        // The forceful variant, matching SettingsWindowController: cooperative `activate()`
+        // may decline when the system thinks another app should keep focus, and a decline
+        // here is silent and leaves the shortcuts dead again. This is the call already known
+        // to activate this LSUIElement app.
+        NSApp.activate(ignoringOtherApps: true)
+
         let p = NSPopover()
         p.contentViewController = hosting
         p.appearance = NSApp.effectiveAppearance
-        p.behavior = .transient          // dismisses when you click away — the "disappears" part
+        // Not .transient. Now that the app activates, .transient would close the popover on
+        // the mouse-down over our own status item — and then the button's action would fire
+        // against an already-closed popover and reopen it on that same click. Owning every
+        // dismissal path below keeps that race from existing.
+        p.behavior = .applicationDefined
         p.animates = true
         p.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover = p
 
-        // .transient alone doesn't catch Esc, which is the reflex for dismissing a HUD.
-        dismissMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 {     // Esc
-                self?.closePopover()
-                return nil
+        // Esc, and clicks on our own other windows (Settings). The status item is excluded
+        // deliberately: togglePopover already closes on a second click, and closing here
+        // too would let that same click fall through and reopen the popover.
+        dismissMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.keyDown, .leftMouseDown, .rightMouseDown]
+        ) { [weak self] event in
+            guard let self else { return event }
+            if event.type == .keyDown {
+                if event.keyCode == 53 {     // Esc
+                    self.closePopover()
+                    return nil
+                }
+                return event
+            }
+            if event.window !== self.statusItem?.button?.window,
+               event.window !== self.popover?.contentViewController?.view.window {
+                self.closePopover()
             }
             return event
         }
 
-        // Nor does .transient actually dismiss this popover on a click outside it.
-        //
-        // An accessory app doesn't activate when you click its status item, so the popover
-        // never becomes key and AppKit has no app-deactivation to hang the dismissal off.
-        // The symptom was exact: clicking away did nothing until you had first clicked the
-        // popover — which finally activated the app — and only then did clicking away work.
-        //
-        // Calling NSApp.activate() on show would also fix it, but stealing keyboard focus
-        // from whatever you were typing in is a bad trade for a glance at a percentage.
-        // Watch for the click instead. Mouse events need no Accessibility permission — only
-        // keyboard monitoring does — so this stays prompt-free, same as the ⌥⌘U hotkey.
-        //
-        // A global monitor sees only events delivered to *other* apps, so clicking our own
-        // status item doesn't reach it and can't race togglePopover into reopening.
+        // Clicks in *other* apps and on the desktop. A global monitor sees only events
+        // delivered elsewhere, so it can never observe — and thus never double-handle — a
+        // click on our own status item. Mouse events need no Accessibility permission; only
+        // keyboard monitoring does, which is why the ⌥⌘U hotkey goes through Carbon.
         outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] _ in
             self?.closePopover()
+        }
+
+        // Losing focus without a click at all — ⌘-Tab, Mission Control, a lock screen.
+        // Without this, .applicationDefined would leave the popover stranded on screen.
+        resignObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.closePopover() }
         }
     }
 
@@ -136,6 +163,8 @@ final class MenuBarMode {
         dismissMonitor = nil
         if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
         outsideClickMonitor = nil
+        if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
+        resignObserver = nil
     }
 
     private func showContextMenu() {

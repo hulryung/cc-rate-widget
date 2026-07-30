@@ -3,7 +3,7 @@ import SwiftUI
 /// What ⌥⌘U shows. Deliberately not the popover.
 ///
 /// The popover is something you browse — cards, per-project totals, buttons. The HUD is on
-/// screen for about three seconds, so it answers only the three questions worth asking at a
+/// screen for five seconds, so it answers only the three questions worth asking at a
 /// glance: how much is used, how long until it resets, and when that reset lands.
 /// Token and dollar totals stay, but demoted.
 struct UsageHUDView: View {

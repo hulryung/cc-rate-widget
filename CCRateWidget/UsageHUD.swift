@@ -70,7 +70,7 @@ final class UsageHUD {
     func show() {
         AggregationCoordinator.shared.runOnce()   // freshen while it fades in
 
-        // Its own view, not the popover: three seconds is enough to read a percentage and
+        // Its own view, not the popover: five seconds is enough to read a percentage and
         // a countdown, not to browse cards and a project list.
         let content = UsageHUDView(cornerRadius: 14)   // panel is transparent; content is the shape
 
