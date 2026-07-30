@@ -1,115 +1,170 @@
 # Claude Rate Widget
 
-**[Homepage](https://rate.huconn.xyz/)** | **[Download](https://github.com/hulryung/cc-rate-widget/releases/latest)**
+**[Homepage](https://rate.huconn.xyz/)** | **[Releases](https://github.com/hulryung/cc-rate-widget/releases)**
 
 A free, open-source native macOS app that monitors your Claude Code token usage and cost at a glance. Never hit a rate limit unexpectedly again.
 
-> **v1.8 replaces the desktop widget with a menu-bar popover and a global shortcut.** See [Why the widget is gone](#why-the-widget-is-gone) if you're upgrading.
-
-## Screenshots
-
-> Being re-shot for v1.8. The previous images showed the desktop widget, which no longer exists.
+> **This README describes v1.8, which has not been released.** The newest published release is
+> **v1.5.2**, the older desktop-widget build, which has none of the surfaces described below. To run
+> the app documented here, [build it from source](#build-from-source).
 
 ## How you check your usage
 
-- **Menu bar** — your weekly percentage is always visible. Click it for the full summary; click away or press <kbd>Esc</kbd> to dismiss.
-- **Global shortcut** — <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> shows the same summary anywhere, including over full-screen apps, and fades out on its own. It waits if your pointer is over it.
-- **Main window** — the dashboard, plus a per-project breakdown of the last 7 days.
+The app has no main window; it lives permanently in the menu bar, with nothing to enable. There are
+two ways to read your usage.
+
+**The popover — for browsing.** The menu-bar item shows your weekly percentage — or a token count
+where that window has no percentage, or the bare gauge icon where there is no weekly window to
+summarise at all. Click it for the full picture: one card per rate-limit window with its token
+count, cost, usage bar and reset time,
+a per-project breakdown of the last 7 days, then Refresh (<kbd>⌘</kbd><kbd>R</kbd>) and Settings
+(<kbd>⌘</kbd><kbd>,</kbd>). Opening it brings the app forward, so those shortcuts and <kbd>Esc</kbd>
+work immediately, with no click into the popover first. It closes on <kbd>Esc</kbd> or a click
+outside it. Right-click the menu-bar item instead for Refresh Now / Settings… / Quit.
+
+**The HUD — for a five-second glance.** <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> floats a panel over
+whatever you're doing, including full-screen apps, where the menu bar isn't reachable. It shows the
+same windows, each led by its percentage, with the time left and the reset moment beside it; tokens
+and cost drop to small type, and the project list and buttons are gone. It fades out after 5
+seconds, or closes on a second <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd>. If your pointer is over it when
+the timer fires it waits another 5 seconds. Unlike the popover it does not bring the app forward, so
+it never takes focus from what you were typing into. The trade-off: <kbd>Esc</kbd> reaches it only
+when the app is already active.
 
 ## Features
 
 - **Local-first** — reads `~/.claude/projects/**/*.jsonl` on your Mac; no network round-trip required
-- **Accurate token & cost tracking** — real 5-hour, 7-day, and 7-day Sonnet token counts and USD cost, not estimates. Prices the current Claude 5 generation (Opus 5, Sonnet 5, Fable 5) and bills 1-hour cache writes at their true 2× rate
-- **Per-project view** — see which projects burned which share of your windows
-- **Optional percentage** — enter your plan's token limits in Settings to see a % against them; left blank, the app shows absolute usage only
-- **Honest by design** — counts deduplicated events and matches `ccusage` on cost; the official quota percentage is an experimental opt-in, because Anthropic does not provide a supported public usage API for third-party apps
+- **Real token & cost tracking** — real counts and USD cost from your logs, not estimates. Prices the
+  current Claude 5 generation (Opus 5, Sonnet 5, Fable 5) and bills 1-hour cache writes at 2×
+- **Windows that match your account** — a 7-day window, a 5-hour session window, and one per model
+  family in your logs. With official usage enabled the list is Anthropic's instead: whatever windows
+  it reports, including scoped per-model ones that come and go
+- **Per-project view** — see which projects burned which share of your last 7 days
+- **Percentages where there's a denominator** — enter your weekly limit in Settings to get a weekly
+  percentage; leave it blank and that window shows absolute usage only. The 5-hour window can
+  self-calibrate instead, against the P90 of your past 5-hour blocks, labelled "of your typical
+  peak" so it isn't mistaken for a quota. That needs three past blocks with usage in them; below
+  three there is no 5-hour percentage at all
+- **Honest by design** — de-duplicates events on the same `messageId:requestId` key `ccusage` uses,
+  and a model id it can't place in any family contributes tokens but no cost. The official quota
+  percentage is an experimental opt-in, because Anthropic provides no supported public usage API
 
 ## Install
 
-### Homebrew (recommended)
+There is no download for the app described above. The most recent published release is **v1.5.2**
+(2026-03-06), the desktop-widget build, and `brew install hulryung/tap/claude-rate-widget` installs
+that same version. It is a different app, not an older cut of this one: it reads no logs and
+reports no tokens and no cost at all, only a quota percentage fetched after you sign in to
+Anthropic. Until v1.8 is published, [build from source](#build-from-source): two commands, no
+Apple Developer account.
 
-```bash
-brew install hulryung/tap/claude-rate-widget
-```
+### After launching
 
-### Manual
-
-1. **Download** the latest DMG from [Releases](https://github.com/hulryung/cc-rate-widget/releases/latest)
-2. **Drag** Claude Rate Widget to your Applications folder
-
-### After install
-
-1. **Launch** the app and grant access to `~/.claude` when asked
-2. **Enable the menu bar** in Settings (<kbd>⌘</kbd><kbd>,</kbd>) if you want the always-visible percentage. The <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> shortcut is on by default
-
-Claude Code must already be installed and signed in to use the experimental official-usage option.
+1. **Grant access — only if you're asked.** With a normal Claude Code install `~/.claude/projects`
+   is already readable and the numbers show up on their own. Only when the app can't read it does
+   the popover show **Setup required** with a **Grant Access** button, which opens a file panel
+   pinned to that folder; choosing it is what grants access. The same button lives in Settings under
+   **Data**. Nothing is tracked until the app can read the folder.
+2. Optionally open Settings (<kbd>⌘</kbd><kbd>,</kbd> in the popover) to enter your plan's token
+   limits. The <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> shortcut is on by default.
 
 ### Requirements
 
-- macOS 14.0 (Sonoma) or later
-- Active Claude Code / Claude Max subscription
+macOS 14.4 or later, and Claude Code with usage logs under `~/.claude/projects`. That folder
+existing is the only precondition — no plan, tier or entitlement is verified anywhere. A
+subscription matters only for the official-usage percentage. That is off by default, and it needs
+Claude Code signed in.
 
 ## Why the widget is gone
 
-A macOS widget extension must be sandboxed, and a sandboxed process carrying the App Group entitlement is killed at launch unless a provisioning profile validates that entitlement. Removing the sandbox instead makes WidgetKit refuse to register the extension at all. Both directions are closed, so the widget could only ever be built on a machine with the distribution profiles installed — and when it wasn't, it silently rendered "Setup required" instead of your usage.
+A macOS widget extension must be sandboxed, and a sandboxed extension cannot carry the App Group
+entitlement it needed to read the app's data unless a provisioning profile validates it. That made
+the widget buildable only on a machine with the distribution profiles installed; without them it
+showed a setup prompt instead of your usage. The app itself was never affected — it isn't sandboxed.
 
-The main app was never affected, because it isn't sandboxed. Dropping the widget removed the App Group, the entitlement, and the provisioning requirement altogether, so the project now builds with plain Developer ID signing and no profiles.
-
-Your data and settings migrate automatically on first launch of v1.8.
+Dropping the widget removed the App Group, the entitlement and the provisioning requirement
+altogether: the app now holds one entitlement, `com.apple.security.network.client`, and builds with
+plain Developer ID signing. Storage moved with it, to
+`~/Library/Application Support/Claude Rate Widget/`. Your state and settings are copied across the
+first time the new build runs, and only where a value isn't already there, so re-running never
+clobbers anything newer.
 
 ## Anthropic usage API support
 
-The app's primary, supported data source is local Claude Code JSONL logs. This path does not call Anthropic's usage API or require the app to manage your Claude credentials.
+The app's primary, supported data source is local Claude Code JSONL logs — a path that never calls
+Anthropic's usage API and never asks the app to manage your credentials.
 
-The optional **official usage percentage** is experimental. It reads Claude Code's existing OAuth access token from the macOS Keychain and calls the same internal `/api/oauth/usage` endpoint used by Claude Code. The endpoint still exists, but it is not a documented public API, and Anthropic states that subscription OAuth credentials are intended for Anthropic's own applications rather than third-party products.
+The optional **official usage percentage** is experimental and off by default. It reads Claude
+Code's existing OAuth access token from the macOS Keychain and calls the internal `/api/oauth/usage`
+endpoint, the one behind Claude Code's own `/status` percentages. That endpoint is not a documented
+public API, and Anthropic states that subscription OAuth credentials are meant for its own
+applications rather than third-party products. So the integration is not supported or guaranteed: it
+may return `401` or `403`, change format, or stop working without notice, and the app then falls
+back to local usage data.
 
-As a result, this integration is not officially supported or guaranteed. It may return `401` or `403`, change response format, or stop working without notice. The app never refreshes or stores Claude Code's OAuth token; when the request is unavailable, it falls back to local usage data. See Anthropic's [Claude Code legal and compliance documentation](https://code.claude.com/docs/en/legal-and-compliance) for the current authentication policy.
+The app never refreshes Claude Code's OAuth token, because that could rotate Claude Code's own
+refresh token and break its login. It never writes the token to disk either — it keeps it in memory,
+re-reads the Keychain only near expiry or on rejection, and fetches roughly every 15 minutes.
+Anthropic's [legal and compliance documentation](https://code.claude.com/docs/en/legal-and-compliance)
+has the current authentication policy.
 
 ## Changelog
 
-### v1.8.0
+Releases stop at **v1.5.2**. v1.7.0 and v1.8.0 were never tagged or published; the v1.8.0 entry is
+kept because it describes work that exists in the source tree, not software you can download.
 
-**Breaking: the desktop widget is removed.** See [Why the widget is gone](#why-the-widget-is-gone). Data and settings migrate automatically; storage moves from the App Group container to `~/Library/Application Support/Claude Rate Widget/`.
+### v1.8.0 — unreleased, source only
 
-- **Corrected pricing.** The rate table only knew the Claude 4 generation, so every Claude 5 model — Opus 5, Sonnet 5, Fable 5 — was costed at $0. Cache writes were also billed at a flat 1.25× input, but current Claude Code writes almost entirely 1-hour cache entries, which bill at 2×. Together these under-reported cost by **35%** on a real 7-day sample. Unknown future models now fall back to their family's rate instead of silently costing nothing.
-- **Menu-bar popover and <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> shortcut** replace the widget as the at-a-glance surfaces.
-- **Plan label restored.** It read a credentials file Claude Code no longer writes, so it had been blank; the tier now comes from the Keychain read the official-usage path already performs, with no extra permission prompt.
-- **UI pass.** Shared design tokens across every surface; usage colour is neutral at rest rather than saturated green, so a warning can actually stand out. Token abbreviation no longer renders 1,400 as "1K", and costs get locale grouping.
-- **Real Settings window** (<kbd>⌘</kbd><kbd>,</kbd>), and the Anthropic-terms notice is now visible rather than buried in a footer.
+**Breaking: the desktop widget and the main window are both removed**, along with v1.7.0's opt-in
+menu-bar toggle: the menu-bar item is now the app's only permanent surface. See
+[Why the widget is gone](#why-the-widget-is-gone); data and settings migrate automatically to
+`~/Library/Application Support/Claude Rate Widget/`, and everything the window carried is now in
+the popover.
 
-### v1.7.0
+- **Corrected pricing.** The rate table only knew Claude 4, so every Claude 5 model was costed at
+  $0, and cache writes were billed at a flat 1.25× input though Claude Code writes almost entirely
+  1-hour entries, which bill at 2×. Cost was under-reported by **35%** on a real 7-day sample.
+- **Rate-limit windows are no longer a fixed list.** The app used to show exactly three: 5-hour,
+  7-day and 7-day Sonnet. Anthropic had stopped reporting the Sonnet one, so that card sat at 0%
+  while real per-model usage went unshown. Per-family totals also recognised only some model ids.
+- **Local numbers now describe Anthropic's block, not ours.** Its windows are fixed blocks with
+  their own start times; ours roll. Right after a weekly reset that produced a card reading
+  "99.7M tok" beside "0%".
+- **The HUD is its own view**, not the popover on a floating panel with the project list and buttons
+  in tow. It leads with the percentage and the time left, and stays up 5 seconds rather than 3.
+- **The Keychain is read on demand, not on every refresh.** Reading it is what can raise a macOS
+  permission prompt, and it was happening roughly 96 times a day for a resident app. The plan label
+  now comes from that same read rather than a credentials file current Claude Code no longer writes,
+  which means the pill fills in only once official usage has been enabled.
+- **UI pass.** Shared design tokens everywhere, a real Settings window (<kbd>⌘</kbd><kbd>,</kbd>), and
+  usage colour neutral at rest rather than saturated green, so a warning can stand out.
 
-- **Local-first, absolute-centric.** Reads `~/.claude/projects/**/*.jsonl` and reports real token counts and USD cost for the 5-hour, 7-day, and 7-day Sonnet windows.
-- **Per-project attribution.** New Projects tab in the main app; Large widget shows Top 3 projects.
-- **Optional percentage.** Enter your plan's 5-hour/weekly token limits in Settings to calculate a percentage from local usage, or explicitly enable the experimental internal-API integration to display Anthropic's official quota percentage when available.
-- **Accurate cost.** Cache-aware pricing and event de-duplication.
-- **Opt-in menu bar mode.** Keep the app alive in the background.
-- **App Sandbox dropped on main app** (widget extension remains sandboxed). Enables reading `~/.claude/`.
+### v1.5.0 — released 2026-03-02
 
-### v1.5.0
-
-- Fix API compatibility: handle nullable `extra_usage.utilization` field in Anthropic usage API response
-- Update OAuth endpoints from `console.anthropic.com` to `platform.claude.com` following Anthropic's domain migration (Jan 2026)
-- Add `forbidden` status handling for Anthropic's third-party OAuth restrictions
-- Improve error logging for easier debugging of token refresh and API failures
+Handles a nullable `extra_usage.utilization` field, moves the OAuth endpoints from
+`console.anthropic.com` to `platform.claude.com` after Anthropic's domain migration, adds
+`forbidden` status handling for third-party OAuth restrictions, and improves error logging.
 
 ---
 
 ## Development
 
-### Prerequisites
-
-- Xcode 16+
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
+Needs Xcode 16+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
+`CCRateWidget.xcodeproj` is generated and not committed, so `xcodegen generate` has to run before
+any `xcodebuild` invocation, including opening the project in Xcode.
 
 ### Build from source
 
 ```bash
 xcodegen generate
-xcodebuild build -project CCRateWidget.xcodeproj -scheme CCRateWidget -configuration Release
+xcodebuild build -project CCRateWidget.xcodeproj -scheme CCRateWidget -configuration Release \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
 ```
 
-No provisioning profiles are needed — the app is unsandboxed and holds no entitlements beyond network access, so a Developer ID certificate alone is enough.
+That produces an unsigned build, which is what you want unless you hold this project's signing
+certificate. `project.yml` pins `DEVELOPMENT_TEAM` to `XGJ87M8ZZR` with manual Developer ID signing,
+so dropping the `CODE_SIGNING_*` overrides only works on a machine with that team's certificate.
+No provisioning profile is needed either way.
 
 ### Run the tests
 
@@ -122,9 +177,11 @@ xcodebuild test -project CCRateWidget.xcodeproj -scheme CCRateWidget \
 ### Project structure
 
 ```
-CCRateWidget/    # App: window, menu-bar popover, hotkey HUD, settings
-Shared/          # Aggregation, pricing, storage, design tokens
+CCRateWidget/       # App: menu-bar item, popover, ⌥⌘U HUD, Settings window
+Shared/             # Aggregation, pricing, storage, design tokens (built into app and tests)
 CCRateWidgetTests/
-docs/            # Landing page (Jekyll, GitHub Pages)
-project.yml      # XcodeGen project spec
+Assets.xcassets/    # Not referenced by project.yml, so nothing here ships today
+docs/               # Landing page (Jekyll, GitHub Pages) and manual QA notes
+.github/workflows/  # ci.yml (xcodebuild test, Debug), update-homebrew.yml (on release publish)
+project.yml         # XcodeGen project spec
 ```

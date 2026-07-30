@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Claude Rate Widget - Track Claude Code Token Usage and Cost on macOS
-description: Free, open-source macOS app that tracks your Claude Code token usage and cost from your local logs. Weekly, 5-hour, and Sonnet windows in your menu bar or behind a global shortcut.
+description: Free, open-source macOS app that tracks your Claude Code token usage and cost from your local logs. One 7-day number in your menu bar; every rate-limit window in the popover or behind a global shortcut.
 ---
 
 <!-- Hero -->
@@ -10,27 +10,29 @@ description: Free, open-source macOS app that tracks your Claude Code token usag
     <div class="fade-in d1">
       <span class="hero-badge">
         <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 12.5a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11zM8 4a.75.75 0 0 1 .75.75v2.5h2.5a.75.75 0 0 1 0 1.5h-2.5v2.5a.75.75 0 0 1-1.5 0v-2.5h-2.5a.75.75 0 0 1 0-1.5h2.5v-2.5A.75.75 0 0 1 8 4z"/></svg>
-        Native macOS App
+        Native macOS Menu-Bar App
       </span>
     </div>
     <h1 class="fade-in d2">
       Your <span class="highlight">Claude Code</span> usage,<br>at a glance.
     </h1>
     <p class="fade-in d3">
-      The essential companion for Claude power users. Your weekly percentage lives in the menu bar, and <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> shows the full picture anywhere — then gets out of your way.
+      It lives in the menu bar as a single number: your 7-day usage, read from the logs Claude Code already writes on your Mac. Click it for the full picture, or press <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> to float the window list over whatever you're doing. That floating list shows for five seconds, and waits as long as your pointer is on it.
     </p>
-    <p class="hero-meta fade-in d3" style="margin-top: 0; margin-bottom: 0.5rem;">Built for Claude Code and Claude Max subscribers.</p>
     <div class="hero-buttons fade-in d4">
-      <a href="{{ site.download_url }}" class="btn-primary">
-        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 2a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 11.586V3a1 1 0 0 1 1-1z"/><path d="M3 14a1 1 0 0 1 1 1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1a1 1 0 1 1 2 0v1a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3v-1a1 1 0 0 1 1-1z"/></svg>
-        Download Free for macOS
+      <a href="{{ site.github_repo }}#build-from-source" class="btn-primary">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 5 1.5 10 6 15"/><polyline points="14 5 18.5 10 14 15"/><line x1="11.5" y1="3" x2="8.5" y2="17"/></svg>
+        Build from Source
       </a>
       <a href="{{ site.github_repo }}" target="_blank" class="btn-secondary">
         <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 0C4.477 0 0 4.477 0 10c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 10 4.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C17.138 18.163 20 14.418 20 10c0-5.523-4.477-10-10-10z" clip-rule="evenodd"/></svg>
         View on GitHub
       </a>
     </div>
-    <p class="hero-meta fade-in d4">Requires macOS 14.0 (Sonoma) or later</p>
+    <p class="hero-meta fade-in d4">
+      Requires macOS 14.4 or later.<br>
+      The version described on this page has not been released yet — it builds from source in two commands. <a href="#install" style="color: var(--accent-orange); text-decoration: none;">What's published today</a>
+    </p>
   </div>
 </section>
 
@@ -38,38 +40,51 @@ description: Free, open-source macOS app that tracks your Claude Code token usag
 <section class="rate-categories" id="screenshots">
   <div class="container">
     <div class="section-header">
-      <h2 class="fade-in">Every window, one view</h2>
-      <p class="fade-in d1">Real token counts and dollars from your own logs — not estimates.</p>
+      <h2 class="fade-in">Every window you actually have</h2>
+      <p class="fade-in d1">Real token counts from your own logs, priced with a cache-aware rate table. A percentage needs something to divide by: a limit you typed into Settings, or Anthropic's own figure if you turn official usage on. The 5-hour session window has a third option — the P90 of your own past 5-hour blocks — which starts once three completed blocks have carried usage.</p>
     </div>
     <div class="widget-frame fade-in d2">
       <div class="rate-bar-demo">
+        <div class="rate-row" style="margin-bottom: 4px;">
+          <span class="rate-label">Weekly <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">7 days</span></span>
+          <span class="rate-value orange" style="background: rgba(255, 159, 10, 0.16); border-radius: 999px; padding: 1px 7px;">92%</span>
+        </div>
         <div class="rate-row">
-          <span class="rate-label">Weekly &middot; 7 days</span>
-          <span class="rate-value orange">92.2M tok &middot; $2,394</span>
+          <span class="rate-value">92.2M <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">tok</span></span>
+          <span class="rate-value" style="font-weight: 600; color: var(--text-secondary);">$2,394</span>
         </div>
         <div class="rate-track">
-          <div class="rate-fill orange" style="width: 0%" data-width="42%"></div>
+          <div class="rate-fill orange" style="width: 0%" data-width="92%"></div>
         </div>
-        <span class="rate-reset">Resets Wed, Jul 29 at 10 PM &middot; 2d 8h left</span>
+        <span class="rate-reset" style="display: flex; justify-content: space-between; gap: 12px;">
+          <span>of 100.0M tok limit</span>
+          <span>Fri, Aug 7, 10 PM <span style="background: rgba(255, 255, 255, 0.12); border-radius: 999px; padding: 1px 6px;">2d 8h left</span></span>
+        </span>
 
+        <div class="rate-row" style="margin-bottom: 4px;">
+          <span class="rate-label">Weekly &middot; Opus <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">7 days</span></span>
+        </div>
         <div class="rate-row">
-          <span class="rate-label">Session &middot; 5 hours</span>
-          <span class="rate-value green">8.6M tok &middot; $229</span>
+          <span class="rate-value">61.4M <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">tok</span></span>
+          <span class="rate-value" style="font-weight: 600; color: var(--text-secondary);">$1,780</span>
         </div>
-        <div class="rate-track">
-          <div class="rate-fill green" style="width: 0%" data-width="23%"></div>
-        </div>
-        <span class="rate-reset">Resets in 4h</span>
+        <span class="rate-reset" style="margin-top: 0;"><em>Annotation, not app text: no limit is reported for a per-model window, so this card has no percentage and no bar.</em></span>
 
+        <div class="rate-row" style="margin-bottom: 4px;">
+          <span class="rate-label">Session <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">5 hours</span></span>
+          <span class="rate-value" style="background: rgba(255, 255, 255, 0.1); border-radius: 999px; padding: 1px 7px;">23%</span>
+        </div>
         <div class="rate-row">
-          <span class="rate-label">Sonnet &middot; 7 days</span>
-          <span class="rate-value green">3.0M tok</span>
+          <span class="rate-value">8.6M <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">tok</span></span>
+          <span class="rate-value" style="font-weight: 600; color: var(--text-secondary);">$229</span>
         </div>
         <div class="rate-track">
-          <div class="rate-fill green" style="width: 0%" data-width="3%"></div>
+          <div class="rate-fill" style="width: 0%; background: rgba(255, 255, 255, 0.35)" data-width="23%"></div>
         </div>
+        <span class="rate-reset">Wed, Aug 5, 6 PM <span style="background: rgba(255, 255, 255, 0.12); border-radius: 999px; padding: 1px 6px;">4h left</span></span>
       </div>
     </div>
+    <p class="fade-in d3" style="text-align: center; margin-top: 20px; font-size: 13px; color: var(--text-muted);">Illustration, not a screenshot — the figures and dates above are invented. The weekly window leads, in the largest slot, and is the only card that prints the limit it's measured against.</p>
   </div>
 </section>
 
@@ -85,29 +100,30 @@ description: Free, open-source macOS app that tracks your Claude Code token usag
         <div class="feature-icon green">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </div>
-        <h3>See All Your Windows at Once</h3>
-        <p>Session (5h), Weekly, and Weekly Sonnet -- every window in a single view, so you never have to guess which limit you're approaching.</p>
+        <h3>Windows That Match Your Account</h3>
+        <p>A 7-day window, a 5-hour session window, and one more for each model family found in your logs — not a fixed list. Turn on official usage and the set becomes Anthropic's own instead, scoped per-model windows included. If that fetch doesn't come back, the local windows stay.</p>
       </div>
       <div class="feature-card fade-in d2">
         <div class="feature-icon orange">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
         <h3>Know When Limits Reset</h3>
-        <p>Every window shows when it resets and how long is left, so you can plan your work around resets instead of waiting and refreshing.</p>
+        <p>Every window shows when it resets and how long is left, so you can plan your work around a reset instead of waiting and refreshing. Windows that share a reset print it once, at the top, rather than repeating the same line down the popover.</p>
       </div>
       <div class="feature-card fade-in d3">
         <div class="feature-icon green">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
         </div>
-        <h3>Never In Your Way</h3>
-        <p>A percentage in the menu bar for the constant glance, <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> for the full summary over anything including full-screen apps, and a window when you want the detail.</p>
+        <h3>Three Glances, No Main Window</h3>
+        <p>One number in the menu bar for the constant glance: your 7-day total, as a percentage when there's a limit to divide by and a raw token count otherwise. When there's no weekly window to read, the icon sits there on its own.</p>
+        <p>Click it for the popover — every window, plus a per-project breakdown of the last 7 days. Opening the popover brings the app forward, so <kbd>Esc</kbd>, <kbd>⌘</kbd><kbd>R</kbd> and <kbd>⌘</kbd><kbd>,</kbd> work straight away. Press <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> for the same window list floating over anything, including full-screen apps where the menu bar isn't reachable. The HUD leaves your focus where it is, and skips the project breakdown — five seconds isn't long enough to read it. Settings opens in a small window of its own; nothing else does.</p>
       </div>
       <div class="feature-card fade-in d1">
         <div class="feature-icon red">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </div>
         <h3>Quiet Until It Matters</h3>
-        <p>Normal usage stays neutral instead of shouting green, so orange at 80% and red past your limit actually stand out. Every colour is backed by text, too.</p>
+        <p>Normal usage stays neutral instead of shouting green, so orange at 80% and red past your limit actually stand out. The bar and the percentage chip name the level to VoiceOver — OK, near limit, over limit — so the signal isn't hue alone.</p>
       </div>
       <div class="feature-card fade-in d2">
         <div class="feature-icon orange">
@@ -115,13 +131,14 @@ description: Free, open-source macOS app that tracks your Claude Code token usag
         </div>
         <h3>No Login, No Keys</h3>
         <p>Reads the JSONL logs Claude Code already writes on your Mac. No account to connect, no API keys to manage, no config files to edit.</p>
+        <p>The official percentage is the exception, and it's off by default. It borrows Claude Code's existing keychain login rather than asking for one. Treat it as experimental: the endpoint isn't a documented public API, Anthropic discourages third-party use of that login, and it can stop working without notice.</p>
       </div>
       <div class="feature-card fade-in d3">
         <div class="feature-icon green">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
         <h3>Honest Numbers</h3>
-        <p>Deduplicated events, cache-aware pricing that tracks the current Claude models, and per-project attribution so you can see exactly where the tokens went.</p>
+        <p>Events are de-duplicated on the same <code>messageId:requestId</code> key <code>ccusage</code> uses, cost comes from a cache-aware rate table with per-family fallbacks, and the twenty busiest projects each get their own line. A model id the table can't place still counts its tokens — it just can't price them.</p>
       </div>
     </div>
   </div>
@@ -131,51 +148,56 @@ description: Free, open-source macOS app that tracks your Claude Code token usag
 <section class="installation" id="install">
   <div class="container">
     <div class="section-header">
-      <h2 class="fade-in">Up and Running in Seconds</h2>
-      <p class="fade-in d1">Install with Homebrew and start tracking your Claude Code usage.</p>
+      <h2 class="fade-in">Two Commands to Build It</h2>
+      <p class="fade-in d1">The app described on this page hasn't been released yet, so there's no DMG for it. Building it takes Xcode and no Apple Developer account.</p>
     </div>
 
     <div class="install-methods">
-      <!-- Homebrew -->
+      <!-- Build from source -->
       <div class="install-method primary fade-in d2">
         <div class="install-method-header">
-          <span class="install-badge recommended">Recommended</span>
-          <h3>Homebrew</h3>
+          <span class="install-badge recommended">Current</span>
+          <h3>Build from Source</h3>
+        </div>
+        <p class="install-note" style="margin-bottom: 16px;">Clone <a href="{{ site.github_repo }}">the repository</a>, then, from its root:</p>
+        <div class="install-code">
+          <code>xcodegen generate</code>
+          <button class="copy-btn" onclick="navigator.clipboard.writeText('xcodegen generate');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy command">Copy</button>
         </div>
         <div class="install-code">
-          <code>brew install hulryung/tap/claude-rate-widget</code>
-          <button class="copy-btn" onclick="navigator.clipboard.writeText('brew install hulryung/tap/claude-rate-widget');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy command">Copy</button>
+          <code>xcodebuild build -project CCRateWidget.xcodeproj -scheme CCRateWidget -configuration Release CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=&quot;&quot;</code>
+          <button class="copy-btn" onclick="navigator.clipboard.writeText('xcodebuild build -project CCRateWidget.xcodeproj -scheme CCRateWidget -configuration Release CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=&quot;&quot;');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy command">Copy</button>
         </div>
-        <p class="install-note">One command to install. Run <code>brew upgrade claude-rate-widget</code> to update.</p>
+        <p class="install-note">Needs Xcode 16 or newer and <a href="https://github.com/yonaskolb/XcodeGen">XcodeGen</a> (<code>brew install xcodegen</code>). The Xcode project is generated rather than committed, so <code>xcodegen generate</code> has to run first. The result is an unsigned build — full instructions are in the <a href="{{ site.github_repo }}#build-from-source">README</a>.</p>
       </div>
 
-      <!-- Manual -->
+      <!-- Published releases -->
       <div class="install-method fade-in d3">
         <div class="install-method-header">
-          <h3>Manual Download</h3>
+          <h3>Published Releases</h3>
         </div>
-        <p class="install-note">Download the latest <a href="{{ site.download_url }}">DMG from GitHub Releases</a> and drag the app to your Applications folder.</p>
+        <p class="install-note">The newest published release is <strong>v1.5.2</strong> (6 March 2026), and it is not the app on this page — it's the older desktop-widget build, and it is a different app rather than an older cut of this one — it reads no logs and reports no tokens and no cost at all, only a quota percentage fetched after you sign in to Anthropic. <code>brew install hulryung/tap/claude-rate-widget</code> installs that same version; Homebrew follows the releases. <a href="{{ site.download_url }}">See the releases page</a>.</p>
       </div>
     </div>
 
     <div class="section-header" style="margin-top: 80px; margin-bottom: 48px;">
-      <h3 class="fade-in" style="font-size: 20px; font-weight: 600;">After Install</h3>
+      <h3 class="fade-in" style="font-size: 20px; font-weight: 600;">After Launching</h3>
     </div>
     <div class="steps">
       <div class="step fade-in d1">
         <div class="step-number">1</div>
-        <h3>Launch App</h3>
-        <p>Open Claude Rate Widget from your Applications folder.</p>
+        <h3>Find It in the Menu Bar</h3>
+        <p>There's no main window and no Dock icon. Look for the gauge icon at the top of the screen — it installs itself at launch, with nothing to switch on.</p>
       </div>
       <div class="step fade-in d2">
         <div class="step-number">2</div>
-        <h3>Grant Access</h3>
-        <p>Allow the app to read <code>~/.claude</code>, where Claude Code keeps its logs.</p>
+        <h3>Grant Access — Only If Asked</h3>
+        <p>With a normal Claude Code install there's nothing to do here — numbers appear on their own, and the app never prompts. If it can't reach <code>~/.claude/projects</code>, where Claude Code keeps its logs, the popover shows <strong>Setup required</strong> with a <strong>Grant Access</strong> button. That button opens a folder picker on that directory, and macOS asks about home-folder access there. The same action lives in Settings as <em>Re-prompt for ~/.claude access</em>.</p>
       </div>
       <div class="step fade-in d3">
         <div class="step-number">3</div>
-        <h3>Pick Your Glance</h3>
-        <p>Turn on the menu bar in Settings, or just press <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd>.</p>
+        <h3>Set Your Limits</h3>
+        <p>Optional. Press <kbd>⌘</kbd><kbd>,</kbd> in the popover to open Settings and enter your plan's token limits, so the weekly and session windows measure against them. Without limits, both windows show tokens only. The session window is the exception: once three past 5-hour blocks have carried usage, it measures against their P90 — your own typical peak. <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> is already on, and official Anthropic percentages are the one thing here that's off by default.</p>
       </div>
     </div>
   </div>

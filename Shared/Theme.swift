@@ -43,7 +43,7 @@ enum AppType {
     static let micro  = Font.caption2.weight(.medium)
 }
 
-/// The hotkey HUD is read in about three seconds and then disappears, so it inverts the
+/// The hotkey HUD is read in about five seconds and then disappears, so it inverts the
 /// popover's hierarchy: the percentage and the time left are the message, while the token
 /// and dollar totals — the detail you'd browse in the popover — recede.
 enum HUDType {
