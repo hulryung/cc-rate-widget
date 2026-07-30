@@ -15,6 +15,7 @@ final class MenuBarMode {
     private var popover: NSPopover?
     private var cancellable: AnyCancellable?
     private var dismissMonitor: Any?
+    private var outsideClickMonitor: Any?
 
     private init() {}
 
@@ -106,6 +107,26 @@ final class MenuBarMode {
             }
             return event
         }
+
+        // Nor does .transient actually dismiss this popover on a click outside it.
+        //
+        // An accessory app doesn't activate when you click its status item, so the popover
+        // never becomes key and AppKit has no app-deactivation to hang the dismissal off.
+        // The symptom was exact: clicking away did nothing until you had first clicked the
+        // popover — which finally activated the app — and only then did clicking away work.
+        //
+        // Calling NSApp.activate() on show would also fix it, but stealing keyboard focus
+        // from whatever you were typing in is a bad trade for a glance at a percentage.
+        // Watch for the click instead. Mouse events need no Accessibility permission — only
+        // keyboard monitoring does — so this stays prompt-free, same as the ⌥⌘U hotkey.
+        //
+        // A global monitor sees only events delivered to *other* apps, so clicking our own
+        // status item doesn't reach it and can't race togglePopover into reopening.
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] _ in
+            self?.closePopover()
+        }
     }
 
     private func closePopover() {
@@ -113,6 +134,8 @@ final class MenuBarMode {
         popover = nil
         if let dismissMonitor { NSEvent.removeMonitor(dismissMonitor) }
         dismissMonitor = nil
+        if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
+        outsideClickMonitor = nil
     }
 
     private func showContextMenu() {
