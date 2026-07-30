@@ -24,6 +24,9 @@ targets:
     sources:
       - path: CCRateWidget
       - path: Shared
+      # Never listed here until now, in any commit — so the icon that 466c69d added
+      # was compiled into nothing and the app shipped with the generic placeholder.
+      - path: Assets.xcassets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dkkang.cc-rate-widget
@@ -31,6 +34,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: CCRateWidget/CCRateWidget.entitlements
         ENABLE_APP_SANDBOX: false
         INFOPLIST_FILE: CCRateWidget/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   CCRateWidgetTests:
     type: bundle.unit-test
