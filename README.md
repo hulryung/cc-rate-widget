@@ -4,9 +4,9 @@
 
 A free, open-source native macOS app that monitors your Claude Code token usage and cost at a glance. Never hit a rate limit unexpectedly again.
 
-> **This README describes v1.8, which has not been released.** The newest published release is
-> **v1.5.2**, the older desktop-widget build, which has none of the surfaces described below. To run
-> the app documented here, [build it from source](#build-from-source).
+> **v1.8 is a breaking release.** Coming from v1.5.2 — the previous published build — the desktop
+> widget and the main window are both gone, and usage now comes from your local logs rather than an
+> Anthropic login. See [Why the widget is gone](#why-the-widget-is-gone).
 
 ## How you check your usage
 
@@ -51,12 +51,20 @@ when the app is already active.
 
 ## Install
 
-There is no download for the app described above. The most recent published release is **v1.5.2**
-(2026-03-06), the desktop-widget build, and `brew install hulryung/tap/claude-rate-widget` installs
-that same version. It is a different app, not an older cut of this one: it reads no logs and
-reports no tokens and no cost at all, only a quota percentage fetched after you sign in to
-Anthropic. Until v1.8 is published, [build from source](#build-from-source): two commands, no
-Apple Developer account.
+### Homebrew
+
+```bash
+brew install hulryung/tap/claude-rate-widget
+```
+
+### Manual
+
+Download the DMG from [Releases](https://github.com/hulryung/cc-rate-widget/releases/latest) and
+drag Claude Rate Widget to Applications. The DMG and the app inside it are both signed with a
+Developer ID certificate and notarized by Apple, so Gatekeeper opens it without a detour through
+System Settings.
+
+Or [build from source](#build-from-source): two commands, no Apple Developer account.
 
 ### After launching
 
@@ -110,10 +118,11 @@ has the current authentication policy.
 
 ## Changelog
 
-Releases stop at **v1.5.2**. v1.7.0 and v1.8.0 were never tagged or published; the v1.8.0 entry is
-kept because it describes work that exists in the source tree, not software you can download.
+v1.8.0 follows **v1.5.2** directly. v1.6 and v1.7 were never published, so what v1.7 introduced —
+the move off the Anthropic API onto your local logs — lands here as well, folded into the entry
+below.
 
-### v1.8.0 — unreleased, source only
+### v1.8.0
 
 **Breaking: the desktop widget and the main window are both removed**, along with v1.7.0's opt-in
 menu-bar toggle: the menu-bar item is now the app's only permanent surface. See

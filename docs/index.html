@@ -31,7 +31,7 @@ description: Free, open-source macOS app that tracks your Claude Code token usag
     </div>
     <p class="hero-meta fade-in d4">
       Requires macOS 14.4 or later.<br>
-      The version described on this page has not been released yet — it builds from source in two commands. <a href="#install" style="color: var(--accent-orange); text-decoration: none;">What's published today</a>
+      Signed with a Developer ID certificate and notarized by Apple. <a href="#install" style="color: var(--accent-orange); text-decoration: none;">Install options</a>
     </p>
   </div>
 </section>
@@ -148,15 +148,27 @@ description: Free, open-source macOS app that tracks your Claude Code token usag
 <section class="installation" id="install">
   <div class="container">
     <div class="section-header">
-      <h2 class="fade-in">Two Commands to Build It</h2>
-      <p class="fade-in d1">The app described on this page hasn't been released yet, so there's no DMG for it. Building it takes Xcode and no Apple Developer account.</p>
+      <h2 class="fade-in">Install</h2>
+      <p class="fade-in d1">One command with Homebrew, or a notarized DMG. Building from source needs Xcode and no Apple Developer account.</p>
     </div>
 
     <div class="install-methods">
-      <!-- Build from source -->
+      <!-- Homebrew + DMG -->
       <div class="install-method primary fade-in d2">
         <div class="install-method-header">
-          <span class="install-badge recommended">Current</span>
+          <span class="install-badge recommended">Recommended</span>
+          <h3>Homebrew</h3>
+        </div>
+        <div class="install-code">
+          <code>brew install hulryung/tap/claude-rate-widget</code>
+          <button class="copy-btn" onclick="navigator.clipboard.writeText('brew install hulryung/tap/claude-rate-widget');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy command">Copy</button>
+        </div>
+        <p class="install-note">Or take the DMG from <a href="{{ site.download_url }}">the releases page</a> and drag the app to Applications. The DMG and the app inside it are both signed with a Developer ID certificate and notarized by Apple, so Gatekeeper opens it without a trip through System Settings.</p>
+      </div>
+
+      <!-- Build from source -->
+      <div class="install-method fade-in d3">
+        <div class="install-method-header">
           <h3>Build from Source</h3>
         </div>
         <p class="install-note" style="margin-bottom: 16px;">Clone <a href="{{ site.github_repo }}">the repository</a>, then, from its root:</p>
@@ -171,14 +183,9 @@ description: Free, open-source macOS app that tracks your Claude Code token usag
         <p class="install-note">Needs Xcode 16 or newer and <a href="https://github.com/yonaskolb/XcodeGen">XcodeGen</a> (<code>brew install xcodegen</code>). The Xcode project is generated rather than committed, so <code>xcodegen generate</code> has to run first. The result is an unsigned build — full instructions are in the <a href="{{ site.github_repo }}#build-from-source">README</a>.</p>
       </div>
 
-      <!-- Published releases -->
-      <div class="install-method fade-in d3">
-        <div class="install-method-header">
-          <h3>Published Releases</h3>
-        </div>
-        <p class="install-note">The newest published release is <strong>v1.5.2</strong> (6 March 2026), and it is not the app on this page — it's the older desktop-widget build, and it is a different app rather than an older cut of this one — it reads no logs and reports no tokens and no cost at all, only a quota percentage fetched after you sign in to Anthropic. <code>brew install hulryung/tap/claude-rate-widget</code> installs that same version; Homebrew follows the releases. <a href="{{ site.download_url }}">See the releases page</a>.</p>
-      </div>
     </div>
+
+    <p class="install-note" style="max-width: 720px; margin: 24px auto 0; text-align: center;">Upgrading from <strong>v1.5.2</strong> (6 March 2026)? That build is a different app rather than an older cut of this one — it read no logs and reported no tokens and no cost, only a quota percentage fetched after you signed in to Anthropic. Your settings carry over; the desktop widget does not come back.</p>
 
     <div class="section-header" style="margin-top: 80px; margin-bottom: 48px;">
       <h3 class="fade-in" style="font-size: 20px; font-weight: 600;">After Launching</h3>
