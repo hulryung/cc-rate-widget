@@ -92,7 +92,10 @@ VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' CCRateW
 [ -n "$VERSION" ] || die "cannot read CFBundleShortVersionString"
 TAG="v$VERSION"
 DMG="$DIST/ClaudeRateWidget-$TAG.dmg"
-NOTES="$DIST/RELEASE_NOTES-$TAG.md"
+# Tracked in git, not under .build/. Release notes are written by hand and are the record
+# of what shipped; keeping them in a gitignored build directory meant the only copy lived
+# on whichever machine cut the release.
+NOTES="$ROOT/releases/$TAG.md"
 info "version         $VERSION"
 
 if [ -z "${SIGN_ID:-}" ]; then

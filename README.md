@@ -191,6 +191,7 @@ Shared/             # Aggregation, pricing, storage, design tokens (built into a
 CCRateWidgetTests/
 Assets.xcassets/    # App icon
 docs/               # Landing page (Jekyll, GitHub Pages) and manual QA notes
+releases/           # Release notes, one file per version — the body --publish uploads
 scripts/release.sh  # Build, sign, notarize, verify, publish
 .github/workflows/  # ci.yml (xcodebuild test, Debug), update-homebrew.yml (on release publish)
 project.yml         # XcodeGen project spec
@@ -205,10 +206,9 @@ scripts/release.sh --install    # ...then install to /Applications and launch it
 scripts/release.sh --publish    # ...then tag and create the GitHub release
 ```
 
-The version comes from `CFBundleShortVersionString` in `CCRateWidget/Info.plist`, and
-`--publish` needs release notes already written at `.build/dist/RELEASE_NOTES-v<version>.md`.
-Bumping the version and writing the notes stay manual on purpose — neither should happen without
-someone reading them.
+The version comes from `CFBundleShortVersionString` in `CCRateWidget/Info.plist`, and `--publish`
+needs release notes already written at `releases/v<version>.md`. Bumping the version and writing
+the notes stay manual on purpose — neither should happen without someone reading them.
 
 The step order matters and the script exists to enforce it:
 
