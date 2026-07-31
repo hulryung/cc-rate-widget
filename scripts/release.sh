@@ -15,8 +15,13 @@
 #
 # Usage:
 #   scripts/release.sh                 # build, notarize, verify — publishes nothing
+#   scripts/release.sh --install       # ...then install it to /Applications and run it
 #   scripts/release.sh --publish       # ...then tag and publish the GitHub release
 #   scripts/release.sh --check         # preflight only
+#
+# --install is for this machine only. It cannot help anyone else: com.apple.quarantine is
+# written by whatever downloads the app — a browser, Homebrew — on their Mac, so nothing
+# done here can pre-clear it for them.
 #
 # Environment:
 #   NOTARY_PROFILE   notarytool keychain profile   (default: cc-rate-widget)
@@ -35,11 +40,13 @@ PROJECT="CCRateWidget.xcodeproj"
 
 PUBLISH=0
 CHECK_ONLY=0
+INSTALL=0
 for arg in "$@"; do
   case "$arg" in
     --publish) PUBLISH=1 ;;
     --check)   CHECK_ONLY=1 ;;
-    -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
+    --install) INSTALL=1 ;;
+    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
     *) echo "unknown argument: $arg" >&2; exit 2 ;;
   esac
 done
@@ -207,6 +214,14 @@ grep -q "accepted" <<<"$APP_VERDICT" || die "Gatekeeper rejected the app inside 
 $APP_VERDICT"
 xcrun stapler validate "$MOUNT/Claude Rate Widget.app" >/dev/null \
   || die "the app inside the DMG has no stapled ticket — it will fail offline"
+# stapler alone is a weak proof of stapling: run it with -v and it will happily fetch the
+# ticket from Apple and still say the validation worked. These two are unambiguous — the
+# ticket is a real file inside the bundle, and =notarized is the requirement Gatekeeper
+# itself evaluates.
+[ -f "$MOUNT/Claude Rate Widget.app/Contents/CodeResources" ] \
+  || die "no notarization ticket file in the bundle — stapling did not take"
+codesign --test-requirement="=notarized" --verify "$MOUNT/Claude Rate Widget.app" 2>/dev/null \
+  || die "the app does not satisfy the =notarized requirement"
 MOUNTED_VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' \
   "$MOUNT/Claude Rate Widget.app/Contents/Info.plist")"
 [ "$MOUNTED_VERSION" = "$VERSION" ] || die "DMG contains $MOUNTED_VERSION, expected $VERSION"
@@ -216,11 +231,59 @@ info "app accepted, ticket valid, version $MOUNTED_VERSION, icon present"
 hdiutil detach "$MOUNT" -quiet; MOUNT=""
 rm -f "$PROBE"
 
+# ---------------------------------------------------------------- install locally
+
+if [ "$INSTALL" = 1 ]; then
+  step "Install to /Applications"
+  # Only reached once the checks above have passed, which is what makes the last step here
+  # defensible rather than a way to silence Gatekeeper.
+
+  # Overwriting a cask-managed app leaves Homebrew describing a version that is no longer
+  # on disk. That drift already happened once here: brew reported 1.5.2 for weeks while
+  # /Applications held a hand-copied 1.8.0, and the mismatch only surfaced during an
+  # upgrade. Say so rather than silently causing it again.
+  if brew list --cask claude-rate-widget >/dev/null 2>&1; then
+    CASK_VERSION="$(brew list --cask --versions claude-rate-widget 2>/dev/null | awk '{print $2}')"
+    info "warning: Homebrew manages this app and reports ${CASK_VERSION:-unknown}."
+    info "         Installing over it makes that record wrong until the next brew upgrade."
+    info "         For a released version prefer: brew upgrade --cask claude-rate-widget"
+  fi
+
+  pkill -f "/Applications/Claude Rate Widget.app" 2>/dev/null || true
+  sleep 1
+  MOUNT="$(hdiutil attach "$DMG" -nobrowse -readonly | grep -o '/Volumes/.*' | head -1)"
+  [ -n "$MOUNT" ] || die "could not mount the DMG to install from"
+  rm -rf "/Applications/Claude Rate Widget.app"
+  cp -R "$MOUNT/Claude Rate Widget.app" /Applications/
+  hdiutil detach "$MOUNT" -quiet; MOUNT=""
+
+  # Gatekeeper's first-launch check on a quarantined app asks a notarization daemon whether
+  # the build is known-good. That call can fail on its own — this machine hit
+  # "Error checking with notarization daemon: 3" on a build that was correctly signed,
+  # notarized and stapled, and the app was blocked with "Apple could not verify...".
+  # Dropping the attribute skips that path. It is safe *here* only because this script has
+  # already proven the artifact notarized offline, two lines of which do not need Apple to
+  # answer. Never do this to something you have not verified yourself.
+  xattr -dr com.apple.quarantine "/Applications/Claude Rate Widget.app"
+  codesign --test-requirement="=notarized" --verify "/Applications/Claude Rate Widget.app" 2>/dev/null \
+    || die "the installed copy no longer satisfies =notarized"
+  info "installed, quarantine cleared, still notarized"
+
+  open "/Applications/Claude Rate Widget.app"
+  sleep 5
+  # It is a menu-bar app with no Dock icon and no window, so "did it start" is the only
+  # thing observable from here.
+  pgrep -f "/Applications/Claude Rate Widget.app" >/dev/null \
+    && info "running — look for the gauge in the menu bar" \
+    || die "the app did not stay running after launch"
+fi
+
 # ---------------------------------------------------------------- publish
 
 if [ "$PUBLISH" = 0 ]; then
   step "Done — nothing published"
   info "artifact: $DMG"
+  [ "$INSTALL" = 1 ] && info "installed:  /Applications/Claude Rate Widget.app"
   info "re-run with --publish to tag $TAG and create the GitHub release"
   exit 0
 fi

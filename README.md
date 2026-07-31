@@ -201,6 +201,7 @@ project.yml         # XcodeGen project spec
 ```bash
 scripts/release.sh --check      # preflight only
 scripts/release.sh              # build, sign, notarize, verify — publishes nothing
+scripts/release.sh --install    # ...then install to /Applications and launch it
 scripts/release.sh --publish    # ...then tag and create the GitHub release
 ```
 
@@ -221,6 +222,15 @@ through while the machine is online, so the mistake surfaces only when someone w
 to Applications first opens it offline. The script verifies the finished DMG the way a browser
 download is treated — it attaches `com.apple.quarantine`, runs `spctl` against the DMG and the app
 inside it, and confirms the stapled ticket, the version and the presence of the icon.
+
+`--install` strips `com.apple.quarantine` from the copy it installs. Gatekeeper's first-launch
+check asks a notarization daemon whether a quarantined build is known-good, and that call can fail
+by itself — this machine hit `Error checking with notarization daemon: 3` and blocked a build that
+was correctly signed, notarized and stapled. Dropping the attribute skips that path, which is only
+defensible because the step runs after the script has proven the artifact notarized offline. It
+also cannot help anyone else: the attribute is written by whatever downloads the app on their Mac.
+Prefer `brew upgrade --cask claude-rate-widget` for a released version, so Homebrew's record keeps
+matching what is on disk.
 
 Notarizing needs a `notarytool` keychain profile named `cc-rate-widget` (override with
 `NOTARY_PROFILE`):
