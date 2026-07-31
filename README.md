@@ -189,8 +189,45 @@ xcodebuild test -project CCRateWidget.xcodeproj -scheme CCRateWidget \
 CCRateWidget/       # App: menu-bar item, popover, ⌥⌘U HUD, Settings window
 Shared/             # Aggregation, pricing, storage, design tokens (built into app and tests)
 CCRateWidgetTests/
-Assets.xcassets/    # Not referenced by project.yml, so nothing here ships today
+Assets.xcassets/    # App icon
 docs/               # Landing page (Jekyll, GitHub Pages) and manual QA notes
+scripts/release.sh  # Build, sign, notarize, verify, publish
 .github/workflows/  # ci.yml (xcodebuild test, Debug), update-homebrew.yml (on release publish)
 project.yml         # XcodeGen project spec
 ```
+
+### Cutting a release
+
+```bash
+scripts/release.sh --check      # preflight only
+scripts/release.sh              # build, sign, notarize, verify — publishes nothing
+scripts/release.sh --publish    # ...then tag and create the GitHub release
+```
+
+The version comes from `CFBundleShortVersionString` in `CCRateWidget/Info.plist`, and
+`--publish` needs release notes already written at `.build/dist/RELEASE_NOTES-v<version>.md`.
+Bumping the version and writing the notes stay manual on purpose — neither should happen without
+someone reading them.
+
+The step order matters and the script exists to enforce it:
+
+```
+app:  build → sign → notarize → staple
+dmg:  pack (with the stapled app inside) → sign → notarize → staple
+```
+
+Notarizing only the DMG leaves the app inside without its own ticket. Gatekeeper still lets it
+through while the machine is online, so the mistake surfaces only when someone who dragged the app
+to Applications first opens it offline. The script verifies the finished DMG the way a browser
+download is treated — it attaches `com.apple.quarantine`, runs `spctl` against the DMG and the app
+inside it, and confirms the stapled ticket, the version and the presence of the icon.
+
+Notarizing needs a `notarytool` keychain profile named `cc-rate-widget` (override with
+`NOTARY_PROFILE`):
+
+```bash
+xcrun notarytool store-credentials "cc-rate-widget" --apple-id <apple-id> --team-id XGJ87M8ZZR
+```
+
+That prompts for an app-specific password from [appleid.apple.com](https://appleid.apple.com), not
+the Apple ID password.
