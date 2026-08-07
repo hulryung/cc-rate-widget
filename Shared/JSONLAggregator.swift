@@ -55,6 +55,12 @@ struct AggregationSnapshot {
     /// "typical peak" denominator. nil until there are enough active blocks to be meaningful.
     var typicalFiveHourPeak: Int?
 
+    /// Seven days at the pace of the heaviest whole day in the window — the weekly
+    /// equivalent, for accounts that never entered a cap. Days rather than a percentile
+    /// over past weeks because the store keeps 7 days: there is no second week to compare
+    /// against, and there never will be. nil until three whole days have usage in them.
+    var typicalWeeklyPeak: Int?
+
     /// Deduplicated in-window events, kept so totals can be recomputed over an arbitrary
     /// period. Anthropic's windows are fixed blocks with their own start times, not the
     /// rolling windows we compute — right after a weekly reset the two disagree completely,
@@ -178,8 +184,15 @@ final class JSONLAggregator {
         var perProjectTokens: [String: Int] = [:]
         var perProjectCost:   [String: Double] = [:]
         var blockTotals: [Int: Int] = [:]   // fixed 5h block index → tokens (for P90 peak)
+        var dayTotals: [Int: Int] = [:]     // local-day index → tokens (for the weekly pace)
         var seen = Set<String>()            // dedupe: same event logged in multiple files
         var kept: [StoredEvent] = []
+
+        // Days are bucketed by the user's calendar, not UTC: an epoch-aligned day starts at
+        // 9am in Seoul and would cut every working day in two, halving the peak we calibrate
+        // against. One fixed offset ignores a DST change inside the window, which can only
+        // move a single boundary by an hour — immaterial next to a day's total.
+        let tzOffset = Double(TimeZone.current.secondsFromGMT(for: now))
 
         for e in events {
             let age = nowT - e.t
@@ -209,12 +222,23 @@ final class JSONLAggregator {
             perProjectCost[e.project, default: 0]   += e.cost
 
             blockTotals[Int(e.t / fiveHours), default: 0] += e.tokens
+            dayTotals[Int((e.t + tzOffset) / 86400), default: 0] += e.tokens
         }
 
         // Typical 5-hour peak = P90 of past active blocks (exclude the in-progress block).
         let currentBlock = Int(nowT / fiveHours)
         let activeBlocks = blockTotals.filter { $0.key != currentBlock && $0.value > 0 }.values.sorted()
         let typicalPeak = activeBlocks.count >= 3 ? percentile(activeBlocks, 0.90) : nil
+
+        // Weekly pace = the heaviest whole day, times seven. Both edge buckets are partial —
+        // today is still filling, and the oldest is cut off by the 7-day retention — so
+        // neither can stand in for a day's usage, which leaves six candidates. Too few for a
+        // percentile to mean anything (P90 of six samples IS the maximum), so this takes the
+        // peak outright rather than dressing it up as a statistic. Three active days is the
+        // same floor the 5-hour peak uses: below that, one unusual day is the whole scale.
+        let today = Int((nowT + tzOffset) / 86400)
+        let wholeDays = dayTotals.filter { $0.key < today && $0.key >= today - 6 && $0.value > 0 }.values
+        let weeklyPace = wholeDays.count >= 3 ? wholeDays.max().map { $0 * 7 } : nil
 
         let entries = perProjectTokens.map { (cwd, tokens) in
             ProjectBreakdown.Entry(
@@ -236,6 +260,7 @@ final class JSONLAggregator {
             projects: ProjectBreakdown(entries: entries),
             lastHalfHourTokensPerSecond: Double(halfHourTokens) / halfHour,
             typicalFiveHourPeak: typicalPeak,
+            typicalWeeklyPeak: weeklyPace,
             events: kept
         )
     }

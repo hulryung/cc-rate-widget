@@ -48,6 +48,7 @@ struct ExtraUsage: Codable {
 enum LimitKind: String {
     case userLimit     // user typed a token cap in Settings
     case typicalPeak   // P90 of the user's own historical 5-hour blocks (self-calibrated)
+    case peakPace      // seven days at the pace of the user's heaviest day (self-calibrated)
     case official      // Anthropic's real utilization (matches Claude Code /status)
 }
 

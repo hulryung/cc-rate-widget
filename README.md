@@ -40,11 +40,14 @@ when the app is already active.
   family in your logs. With official usage enabled the list is Anthropic's instead: whatever windows
   it reports, including scoped per-model ones that come and go
 - **Per-project view** — see which projects burned which share of your last 7 days
-- **Percentages where there's a denominator** — enter your weekly limit in Settings to get a weekly
-  percentage; leave it blank and that window shows absolute usage only. The 5-hour window can
-  self-calibrate instead, against the P90 of your past 5-hour blocks, labelled "of your typical
-  peak" so it isn't mistaken for a quota. That needs three past blocks with usage in them; below
-  three there is no 5-hour percentage at all
+- **Percentages without asking you for a limit** — enter your plan's limits in Settings and both
+  windows measure against them. Leave them blank and each self-calibrates against your own history
+  instead: the 5-hour window against the P90 of your past 5-hour blocks ("of your typical peak"),
+  the weekly window against seven days at the pace of your heaviest whole day ("of 7 × your peak
+  day"). Both are labelled by what the denominator is, so neither reads as a quota. Each needs
+  three past samples — blocks, or whole days — and below three that window shows absolute usage
+  only. Days are your calendar's, and the weekly pace ignores today and the oldest day in the
+  window, since neither is whole
 - **Honest by design** — de-duplicates events on the same `messageId:requestId` key `ccusage` uses,
   and a model id it can't place in any family contributes tokens but no cost. The official quota
   percentage is an experimental opt-in, because Anthropic provides no supported public usage API
@@ -118,11 +121,22 @@ has the current authentication policy.
 
 ## Changelog
 
-v1.8.0 follows **v1.5.2** directly. v1.6 and v1.7 were never published, so what v1.7 introduced —
-the move off the Anthropic API onto your local logs — lands here as well, folded into the entry
-below.
+### v1.9.0
+
+- **The weekly card shows a bar without being given a limit.** It was the one card that could show
+  nothing but a number: Anthropic publishes no weekly token limit, so unless you had entered one
+  the app's headline figure had no denominator. It now self-calibrates the way the 5-hour card
+  already did — against seven days at the pace of your heaviest whole day, captioned "of 7 × your
+  peak day" so it doesn't read as a quota. Days rather than past weeks because the event store
+  keeps 7 days: there is no previous week to compare against. Today and the oldest day are
+  excluded as partial, and three whole days with usage are required before any percentage appears.
+- **The menu-bar item now reads as a percentage for most people**, since it shows one whenever the
+  weekly window has a denominator.
 
 ### v1.8.0
+
+v1.8.0 follows **v1.5.2** directly. v1.6 and v1.7 were never published, so what v1.7 introduced —
+the move off the Anthropic API onto your local logs — lands here as well, folded into this entry.
 
 **Breaking: the desktop widget and the main window are both removed**, along with v1.7.0's opt-in
 menu-bar toggle: the menu-bar item is now the app's only permanent surface. See
