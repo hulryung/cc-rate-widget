@@ -296,6 +296,43 @@ final class JSONLAggregatorTests: XCTestCase {
         XCTAssertEqual(snap.typicalFiveHourPeak, 5000)
     }
 
+    /// Local noon today, so a day bucket can never be one hour either side of a boundary.
+    private func localNoonToday() -> Date {
+        let base = Date()
+        let tz = Double(TimeZone.current.secondsFromGMT(for: base))
+        let dayIndex = Int((base.timeIntervalSince1970 + tz) / 86400)
+        return Date(timeIntervalSince1970: Double(dayIndex) * 86400 - tz + 12 * 3600)
+    }
+
+    func test_computeSnapshot_weeklyPace_sevenTimesHeaviestWholeDay() {
+        let now = localNoonToday()
+        let noon = now.timeIntervalSince1970
+        var events = [
+            // Three whole days back, heaviest last.
+            StoredEvent(t: noon - 1 * 86400, tokens: 100, family: "opus", cost: 0, project: "/p", id: "d1"),
+            StoredEvent(t: noon - 2 * 86400, tokens: 200, family: "opus", cost: 0, project: "/p", id: "d2"),
+            StoredEvent(t: noon - 3 * 86400, tokens: 300, family: "opus", cost: 0, project: "/p", id: "d3"),
+        ]
+        // Today is still filling and the oldest day is cut off by the 7-day retention;
+        // neither is a whole day, so neither may set the pace however big it is.
+        events.append(StoredEvent(t: noon - 3600,     tokens: 9_000, family: "opus", cost: 0, project: "/p", id: "today"))
+        events.append(StoredEvent(t: noon - 7 * 86400 + 60, tokens: 9_000, family: "opus", cost: 0, project: "/p", id: "edge"))
+
+        let snap = JSONLAggregator.computeSnapshot(events: events, now: now)
+        XCTAssertEqual(snap.typicalWeeklyPeak, 300 * 7)
+    }
+
+    func test_computeSnapshot_weeklyPace_nilWhenTooFewWholeDays() {
+        let now = localNoonToday()
+        let noon = now.timeIntervalSince1970
+        let events = [
+            StoredEvent(t: noon - 1 * 86400, tokens: 100, family: "opus", cost: 0, project: "/p", id: "d1"),
+            StoredEvent(t: noon - 2 * 86400, tokens: 200, family: "opus", cost: 0, project: "/p", id: "d2"),
+            StoredEvent(t: noon - 3600,      tokens: 900, family: "opus", cost: 0, project: "/p", id: "today"),
+        ]
+        XCTAssertNil(JSONLAggregator.computeSnapshot(events: events, now: now).typicalWeeklyPeak)
+    }
+
     func test_computeSnapshot_typicalPeak_nilWhenTooFewBlocks() {
         let now = Date()
         let nowT = now.timeIntervalSince1970

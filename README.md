@@ -40,11 +40,14 @@ when the app is already active.
   family in your logs. With official usage enabled the list is Anthropic's instead: whatever windows
   it reports, including scoped per-model ones that come and go
 - **Per-project view** — see which projects burned which share of your last 7 days
-- **Percentages where there's a denominator** — enter your weekly limit in Settings to get a weekly
-  percentage; leave it blank and that window shows absolute usage only. The 5-hour window can
-  self-calibrate instead, against the P90 of your past 5-hour blocks, labelled "of your typical
-  peak" so it isn't mistaken for a quota. That needs three past blocks with usage in them; below
-  three there is no 5-hour percentage at all
+- **Percentages without asking you for a limit** — enter your plan's limits in Settings and both
+  windows measure against them. Leave them blank and each self-calibrates against your own history
+  instead: the 5-hour window against the P90 of your past 5-hour blocks ("of your typical peak"),
+  the weekly window against seven days at the pace of your heaviest whole day ("of 7 × your peak
+  day"). Both are labelled by what the denominator is, so neither reads as a quota. Each needs
+  three past samples — blocks, or whole days — and below three that window shows absolute usage
+  only. Days are your calendar's, and the weekly pace ignores today and the oldest day in the
+  window, since neither is whole
 - **Honest by design** — de-duplicates events on the same `messageId:requestId` key `ccusage` uses,
   and a model id it can't place in any family contributes tokens but no cost. The official quota
   percentage is an experimental opt-in, because Anthropic provides no supported public usage API

@@ -175,6 +175,9 @@ func limitCaption(_ cat: CategoryData, plan: String?) -> String? {
     case .typicalPeak:
         guard let limit = cat.limitTokens else { return nil }
         return "of your typical peak (\(UsageFormat.tokens(limit)) tok)"
+    case .peakPace:
+        guard let limit = cat.limitTokens else { return nil }
+        return "of 7 × your peak day (\(UsageFormat.tokens(limit)) tok)"
     }
 }
 

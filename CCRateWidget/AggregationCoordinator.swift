@@ -88,12 +88,20 @@ final class AggregationCoordinator: ObservableObject {
         else if let p = snap.typicalFiveHourPeak { sessionLimit = p; sessionKind = .typicalPeak }
         else { sessionLimit = nil; sessionKind = nil }
 
+        // Weekly denominator: the same idea one window up. Without it the card people look at
+        // first was the only one with no bar at all, since a weekly cap is the one number
+        // Anthropic doesn't publish and most people never type in.
+        let weeklyLimit: Int?; let weeklyKind: LimitKind?
+        if let c = weeklyCap { weeklyLimit = c; weeklyKind = .userLimit }
+        else if let p = snap.typicalWeeklyPeak { weeklyLimit = p; weeklyKind = .peakPace }
+        else { weeklyLimit = nil; weeklyKind = nil }
+
         let localSession = cat(tokens: snap.fiveHourTokens, cost: snap.fiveHourCost,
                                earliest: snap.earliestInFiveHour, window: 5 * 3600,
                                limit: sessionLimit, kind: sessionKind)
         let localWeekly = cat(tokens: snap.sevenDayTokens, cost: snap.sevenDayCost,
                               earliest: snap.earliestInSevenDay, window: 7 * 86400,
-                              limit: weeklyCap, kind: weeklyCap != nil ? .userLimit : nil)
+                              limit: weeklyLimit, kind: weeklyKind)
 
         // Local windows: what we can measure ourselves.
         var windows: [UsageWindow] = [
