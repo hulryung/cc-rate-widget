@@ -121,11 +121,22 @@ has the current authentication policy.
 
 ## Changelog
 
-v1.8.0 follows **v1.5.2** directly. v1.6 and v1.7 were never published, so what v1.7 introduced —
-the move off the Anthropic API onto your local logs — lands here as well, folded into the entry
-below.
+### v1.9.0
+
+- **The weekly card shows a bar without being given a limit.** It was the one card that could show
+  nothing but a number: Anthropic publishes no weekly token limit, so unless you had entered one
+  the app's headline figure had no denominator. It now self-calibrates the way the 5-hour card
+  already did — against seven days at the pace of your heaviest whole day, captioned "of 7 × your
+  peak day" so it doesn't read as a quota. Days rather than past weeks because the event store
+  keeps 7 days: there is no previous week to compare against. Today and the oldest day are
+  excluded as partial, and three whole days with usage are required before any percentage appears.
+- **The menu-bar item now reads as a percentage for most people**, since it shows one whenever the
+  weekly window has a denominator.
 
 ### v1.8.0
+
+v1.8.0 follows **v1.5.2** directly. v1.6 and v1.7 were never published, so what v1.7 introduced —
+the move off the Anthropic API onto your local logs — lands here as well, folded into this entry.
 
 **Breaking: the desktop widget and the main window are both removed**, along with v1.7.0's opt-in
 menu-bar toggle: the menu-bar item is now the app's only permanent surface. See
