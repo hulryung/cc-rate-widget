@@ -4,6 +4,25 @@
 
 A free, open-source native macOS app that monitors your Claude Code token usage and cost at a glance. Never hit a rate limit unexpectedly again.
 
+<table>
+  <tr valign="top">
+    <td align="center"><img src="docs/assets/popover-local.png" width="280"
+      alt="The popover reading local logs: a weekly card at 46% of 7 × your peak day, per-model weekly totals, and a 5-hour session card"></td>
+    <td align="center"><img src="docs/assets/popover-official.png" width="280"
+      alt="The same popover with official usage enabled: 22% of the Anthropic quota on a Max 20x plan"></td>
+    <td align="center"><img src="docs/assets/hud.png" width="280"
+      alt="The hotkey HUD: each window led by its percentage, the time left and the reset moment"></td>
+  </tr>
+  <tr valign="top">
+    <td align="center"><sub>The popover — local logs, self-calibrated</sub></td>
+    <td align="center"><sub>The popover — official quota % (opt-in)</sub></td>
+    <td align="center"><sub>The <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> HUD</sub></td>
+  </tr>
+</table>
+
+<sub>The per-project breakdown sits below the cards in the popover; it is cropped out of these
+shots because it lists real project names.</sub>
+
 > **v1.8 is a breaking release.** Coming from v1.5.2 — the previous published build — the desktop
 > widget and the main window are both gone, and usage now comes from your local logs rather than an
 > Anthropic login. See [Why the widget is gone](#why-the-widget-is-gone).
