@@ -1,6 +1,6 @@
-# Claude Rate Widget
+# Claude Rate Monitor
 
-**[Homepage](https://rate.huconn.com/)** | **[Releases](https://github.com/hulryung/cc-rate-widget/releases)**
+**[Homepage](https://rate.huconn.com/)** | **[Releases](https://github.com/hulryung/claude-rate-monitor/releases)**
 
 A free, open-source native macOS app that monitors your Claude Code token usage and cost at a glance. Never hit a rate limit unexpectedly again.
 
@@ -76,13 +76,13 @@ when the app is already active.
 ### Homebrew
 
 ```bash
-brew install hulryung/tap/claude-rate-widget
+brew install hulryung/tap/claude-rate-monitor
 ```
 
 ### Manual
 
-Download the DMG from [Releases](https://github.com/hulryung/cc-rate-widget/releases/latest) and
-drag Claude Rate Widget to Applications. The DMG and the app inside it are both signed with a
+Download the DMG from [Releases](https://github.com/hulryung/claude-rate-monitor/releases/latest) and
+drag Claude Rate Monitor to Applications. The DMG and the app inside it are both signed with a
 Developer ID certificate and notarized by Apple, so Gatekeeper opens it without a detour through
 System Settings.
 
@@ -115,7 +115,7 @@ showed a setup prompt instead of your usage. The app itself was never affected �
 Dropping the widget removed the App Group, the entitlement and the provisioning requirement
 altogether: the app now holds one entitlement, `com.apple.security.network.client`, and builds with
 plain Developer ID signing. Storage moved with it, to
-`~/Library/Application Support/Claude Rate Widget/`. Your state and settings are copied across the
+`~/Library/Application Support/Claude Rate Monitor/`. Your state and settings are copied across the
 first time the new build runs, and only where a value isn't already there, so re-running never
 clobbers anything newer.
 
@@ -160,7 +160,7 @@ the move off the Anthropic API onto your local logs — lands here as well, fold
 **Breaking: the desktop widget and the main window are both removed**, along with v1.7.0's opt-in
 menu-bar toggle: the menu-bar item is now the app's only permanent surface. See
 [Why the widget is gone](#why-the-widget-is-gone); data and settings migrate automatically to
-`~/Library/Application Support/Claude Rate Widget/`, and everything the window carried is now in
+`~/Library/Application Support/Claude Rate Monitor/`, and everything the window carried is now in
 the popover.
 
 - **Corrected pricing.** The rate table only knew Claude 4, so every Claude 5 model was costed at
@@ -262,7 +262,7 @@ by itself — this machine hit `Error checking with notarization daemon: 3` and 
 was correctly signed, notarized and stapled. Dropping the attribute skips that path, which is only
 defensible because the step runs after the script has proven the artifact notarized offline. It
 also cannot help anyone else: the attribute is written by whatever downloads the app on their Mac.
-Prefer `brew upgrade --cask claude-rate-widget` for a released version, so Homebrew's record keeps
+Prefer `brew upgrade --cask claude-rate-monitor` for a released version, so Homebrew's record keeps
 matching what is on disk.
 
 Notarizing needs a `notarytool` keychain profile named `cc-rate-widget` (override with

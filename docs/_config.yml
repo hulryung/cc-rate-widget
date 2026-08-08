@@ -1,11 +1,11 @@
-title: Claude Rate Widget
+title: Claude Rate Monitor
 description: Free, open-source macOS app to track your Claude Code token usage and cost
 url: https://rate.huconn.com
 baseurl: ""
 theme: null
 
-github_repo: https://github.com/hulryung/cc-rate-widget
-download_url: https://github.com/hulryung/cc-rate-widget/releases/latest
+github_repo: https://github.com/hulryung/claude-rate-monitor
+download_url: https://github.com/hulryung/claude-rate-monitor/releases/latest
 
 exclude:
   - Gemfile

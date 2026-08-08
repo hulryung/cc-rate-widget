@@ -26,10 +26,14 @@ final class LocalStore {
     private let decoder = JSONDecoder()
 
     static var shared: LocalStore = {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Claude Rate Widget", isDirectory: true)
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let base = support.appendingPathComponent("Claude Rate Monitor", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         let store = LocalStore(containerURL: base)
+        // The app was Claude Rate Widget until 1.10 and its folder was named after it.
+        // Both migrations run every launch and both refuse to overwrite, so the order
+        // between them decides nothing and a re-run costs a few stat calls.
+        store.adoptFiles(from: support.appendingPathComponent("Claude Rate Widget", isDirectory: true))
         store.migrateFromAppGroupIfNeeded()
         return store
     }()
@@ -97,16 +101,23 @@ final class LocalStore {
         let legacy = fm.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Group Containers/\(Self.legacyAppGroupID)", isDirectory: true)
         guard fm.fileExists(atPath: legacy.path) else { return }
+        adoptFiles(from: legacy)
+        Self.migrateSettings(legacyContainer: legacy)
+    }
 
-        // Files: only move what we don't already have, so a re-run never clobbers newer state.
+    /// Copies the store's files out of an older container, taking only what we don't
+    /// already have so a re-run never clobbers newer state. The old directory is left
+    /// where it is: deleting it would make the migration one-way the moment it ran, and
+    /// it costs a few hundred kilobytes to keep.
+    private func adoptFiles(from legacy: URL) {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: legacy.path) else { return }
         for name in ["rate.json", "projects.json", "offsets.json", "events.json", "schema.json"] {
             let from = legacy.appendingPathComponent(name)
             let to = containerURL.appendingPathComponent(name)
             guard fm.fileExists(atPath: from.path), !fm.fileExists(atPath: to.path) else { continue }
             try? fm.copyItem(at: from, to: to)
         }
-
-        Self.migrateSettings(legacyContainer: legacy)
     }
 
     /// Copies the old settings across.

@@ -15,7 +15,7 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
-          EXPECTED_NAME="ClaudeRateWidget-${TAG}.dmg"
+          EXPECTED_NAME="ClaudeRateMonitor-${TAG}.dmg"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
           # Find the actual DMG asset name in the release
@@ -52,7 +52,7 @@ jobs:
           script: |
             const owner = 'hulryung';
             const repo = 'homebrew-tap';
-            const path = 'Casks/claude-rate-widget.rb';
+            const path = 'Casks/claude-rate-monitor.rb';
             const version = '${{ steps.release.outputs.version }}';
             const sha256 = '${{ steps.release.outputs.sha256 }}';
 
@@ -65,7 +65,7 @@ jobs:
 
             await github.rest.repos.createOrUpdateFileContents({
               owner, repo, path,
-              message: `Update claude-rate-widget to v${version}`,
+              message: `Update claude-rate-monitor to v${version}`,
               content: Buffer.from(updated).toString('base64'),
               sha: file.sha,
             });

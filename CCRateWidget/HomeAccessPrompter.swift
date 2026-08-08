@@ -10,7 +10,7 @@ final class HomeAccessPrompter {
     /// is what nudges TCC to prompt for home-folder access.
     func prompt() {
         let panel = NSOpenPanel()
-        panel.message = "Select your ~/.claude/projects folder to allow Claude Rate Widget to read usage data."
+        panel.message = "Select your ~/.claude/projects folder to allow Claude Rate Monitor to read usage data."
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
