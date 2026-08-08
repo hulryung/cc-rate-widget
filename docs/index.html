@@ -41,50 +41,26 @@ description: Free, open-source macOS app that tracks your Claude Code token usag
   <div class="container">
     <div class="section-header">
       <h2 class="fade-in">Every window you actually have</h2>
-      <p class="fade-in d1">Real token counts from your own logs, priced with a cache-aware rate table. A percentage needs something to divide by: a limit you typed into Settings, or Anthropic's own figure if you turn official usage on. The 5-hour session window has a third option — the P90 of your own past 5-hour blocks — which starts once three completed blocks have carried usage.</p>
+      <p class="fade-in d1">Real token counts from your own logs, priced with a cache-aware rate table. A percentage needs something to divide by, and you don't have to be the one who supplies it: type your plan's limits into Settings if you know them, or let each window calibrate against your own history — the 5-hour window against the P90 of your past 5-hour blocks, the weekly window against seven days at the pace of your heaviest whole day. Either way the card prints what it divided by. Turn official usage on and Anthropic's own figures replace both.</p>
     </div>
-    <div class="widget-frame fade-in d2">
-      <div class="rate-bar-demo">
-        <div class="rate-row" style="margin-bottom: 4px;">
-          <span class="rate-label">Weekly <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">7 days</span></span>
-          <span class="rate-value orange" style="background: rgba(255, 159, 10, 0.16); border-radius: 999px; padding: 1px 7px;">92%</span>
-        </div>
-        <div class="rate-row">
-          <span class="rate-value">92.2M <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">tok</span></span>
-          <span class="rate-value" style="font-weight: 600; color: var(--text-secondary);">$2,394</span>
-        </div>
-        <div class="rate-track">
-          <div class="rate-fill orange" style="width: 0%" data-width="92%"></div>
-        </div>
-        <span class="rate-reset" style="display: flex; justify-content: space-between; gap: 12px;">
-          <span>of 100.0M tok limit</span>
-          <span>Fri, Aug 7, 10 PM <span style="background: rgba(255, 255, 255, 0.12); border-radius: 999px; padding: 1px 6px;">2d 8h left</span></span>
-        </span>
-
-        <div class="rate-row" style="margin-bottom: 4px;">
-          <span class="rate-label">Weekly &middot; Opus <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">7 days</span></span>
-        </div>
-        <div class="rate-row">
-          <span class="rate-value">61.4M <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">tok</span></span>
-          <span class="rate-value" style="font-weight: 600; color: var(--text-secondary);">$1,780</span>
-        </div>
-        <span class="rate-reset" style="margin-top: 0;"><em>Annotation, not app text: no limit is reported for a per-model window, so this card has no percentage and no bar.</em></span>
-
-        <div class="rate-row" style="margin-bottom: 4px;">
-          <span class="rate-label">Session <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">5 hours</span></span>
-          <span class="rate-value" style="background: rgba(255, 255, 255, 0.1); border-radius: 999px; padding: 1px 7px;">23%</span>
-        </div>
-        <div class="rate-row">
-          <span class="rate-value">8.6M <span style="font-weight: 400; font-size: 11px; color: var(--text-muted);">tok</span></span>
-          <span class="rate-value" style="font-weight: 600; color: var(--text-secondary);">$229</span>
-        </div>
-        <div class="rate-track">
-          <div class="rate-fill" style="width: 0%; background: rgba(255, 255, 255, 0.35)" data-width="23%"></div>
-        </div>
-        <span class="rate-reset">Wed, Aug 5, 6 PM <span style="background: rgba(255, 255, 255, 0.12); border-radius: 999px; padding: 1px 6px;">4h left</span></span>
-      </div>
+    <div class="shots fade-in d2">
+      <figure class="shot">
+        <img src="{{ site.baseurl }}/assets/popover-local.png" width="852" height="1004" loading="lazy"
+             alt="The popover reading local logs: a weekly card at 46 percent captioned of 7 times your peak day, per-model weekly totals for Opus and Fable, and a 5-hour session card">
+        <figcaption><strong>Local logs.</strong> The weekly card divides by seven days at your heaviest day's pace, and says so underneath. Per-model windows have no denominator to use, so they show tokens and cost alone.</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="{{ site.baseurl }}/assets/popover-official.png" width="852" height="860" loading="lazy"
+             alt="The same popover with official usage enabled, showing 22 percent of the Anthropic quota on a Max 20x plan">
+        <figcaption><strong>Official usage, opt-in.</strong> Anthropic's own percentages and windows, matching what Claude Code's <code>/status</code> prints — including the plan label. Local tokens are recounted over Anthropic's window rather than ours.</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="{{ site.baseurl }}/assets/hud.png" width="800" height="704" loading="lazy"
+             alt="The hotkey HUD: each window led by its percentage, with the time left and the reset moment beside it">
+        <figcaption><strong>The <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> HUD.</strong> The same windows over whatever you're doing, led by the percentage and the time left. It takes no focus and fades after five seconds.</figcaption>
+      </figure>
     </div>
-    <p class="fade-in d3" style="text-align: center; margin-top: 20px; font-size: 13px; color: var(--text-muted);">Illustration, not a screenshot — the figures and dates above are invented. The weekly window leads, in the largest slot, and is the only card that prints the limit it's measured against.</p>
+    <p class="fade-in d3" style="text-align: center; margin-top: 32px; font-size: 13px; color: var(--text-muted);">Real screenshots, so the figures are one machine's actual usage. The per-project breakdown sits below these cards in the app — it's cropped out here because it lists real project names.</p>
   </div>
 </section>
 
@@ -204,7 +180,7 @@ description: Free, open-source macOS app that tracks your Claude Code token usag
       <div class="step fade-in d3">
         <div class="step-number">3</div>
         <h3>Set Your Limits</h3>
-        <p>Optional. Press <kbd>⌘</kbd><kbd>,</kbd> in the popover to open Settings and enter your plan's token limits, so the weekly and session windows measure against them. Without limits, both windows show tokens only. The session window is the exception: once three past 5-hour blocks have carried usage, it measures against their P90 — your own typical peak. <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> is already on, and official Anthropic percentages are the one thing here that's off by default.</p>
+        <p>Optional. Press <kbd>⌘</kbd><kbd>,</kbd> in the popover to open Settings and enter your plan's token limits, so the weekly and session windows measure against them. Leave them blank and each window calibrates against your own history instead — the session against the P90 of your past 5-hour blocks, the week against seven days at your heaviest day's pace. Both need three past samples first, and until then that window shows tokens only. <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> is already on, and official Anthropic percentages are the one thing here that's off by default.</p>
       </div>
     </div>
   </div>
