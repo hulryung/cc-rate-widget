@@ -1,0 +1,9 @@
+# Local Vercel state and the OIDC token `vercel link` writes. Never part of the
+# deployed site — a static host would serve them as plain files.
+.vercel
+.env*
+
+# Working notes that live under docs/ but are not part of the site. Jekyll used to
+# render them into pages; a static host would hand them over as raw Markdown.
+docs/MANUAL_QA.md
+docs/superpowers
