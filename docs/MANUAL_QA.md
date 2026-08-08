@@ -148,7 +148,7 @@ Rename `~/.claude/projects` away for these.
 
 ## Storage and migration
 
-- [ ] After the first successful tick, `~/Library/Application Support/Claude Rate Widget/` contains `rate.json`, `projects.json`, `offsets.json`, `events.json` and `schema.json`.
+- [ ] After the first successful tick, `~/Library/Application Support/Claude Rate Monitor/` contains `rate.json`, `projects.json`, `offsets.json`, `events.json` and `schema.json`.
 - [ ] `schema.json` records version 4.
 - [ ] Editing `schema.json` to a different version → the next tick discards stored events and offsets, re-reads from source, and arrives back at the same totals (may take one extra tick on a large history).
 - [ ] With data still present in the legacy App Group container and none in Application Support, first launch copies `rate.json`, `projects.json`, `offsets.json`, `events.json` and `schema.json` across, leaving the originals in place.

@@ -91,7 +91,7 @@ command -v gh >/dev/null       || die "gh not installed (brew install gh)"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' CCRateWidget/Info.plist)"
 [ -n "$VERSION" ] || die "cannot read CFBundleShortVersionString"
 TAG="v$VERSION"
-DMG="$DIST/ClaudeRateWidget-$TAG.dmg"
+DMG="$DIST/ClaudeRateMonitor-$TAG.dmg"
 # Tracked in git, not under .build/. Release notes are written by hand and are the record
 # of what shipped; keeping them in a gitignored build directory meant the only copy lived
 # on whichever machine cut the release.
@@ -146,7 +146,7 @@ step "Build (Release)"
 xcodegen generate >/dev/null
 xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
   -derivedDataPath "$DERIVED" build >/dev/null 2>&1 || die "build failed"
-APP="$DERIVED/Build/Products/Release/Claude Rate Widget.app"
+APP="$DERIVED/Build/Products/Release/Claude Rate Monitor.app"
 [ -d "$APP" ] || die "built app not found at $APP"
 
 step "Verify the app's signature"
@@ -183,7 +183,7 @@ rm -rf "$DIST/stage" "$DMG"
 mkdir -p "$DIST/stage"
 cp -R "$APP" "$DIST/stage/"
 ln -s /Applications "$DIST/stage/Applications"
-hdiutil create -volname "Claude Rate Widget" -srcfolder "$DIST/stage" -ov -format UDZO "$DMG" >/dev/null
+hdiutil create -volname "Claude Rate Monitor" -srcfolder "$DIST/stage" -ov -format UDZO "$DMG" >/dev/null
 rm -rf "$DIST/stage"
 codesign --force --sign "$SIGN_ID" --timestamp "$DMG" || die "signing the DMG failed"
 info "$(basename "$DMG") — $(du -h "$DMG" | cut -f1)"
@@ -212,23 +212,23 @@ info "DMG accepted"
 
 MOUNT="$(hdiutil attach "$PROBE" -nobrowse -readonly | grep -o '/Volumes/.*' | head -1)"
 [ -n "$MOUNT" ] || die "could not mount the probe DMG"
-APP_VERDICT="$(spctl -a -vvv "$MOUNT/Claude Rate Widget.app" 2>&1 || true)"
+APP_VERDICT="$(spctl -a -vvv "$MOUNT/Claude Rate Monitor.app" 2>&1 || true)"
 grep -q "accepted" <<<"$APP_VERDICT" || die "Gatekeeper rejected the app inside the DMG:
 $APP_VERDICT"
-xcrun stapler validate "$MOUNT/Claude Rate Widget.app" >/dev/null \
+xcrun stapler validate "$MOUNT/Claude Rate Monitor.app" >/dev/null \
   || die "the app inside the DMG has no stapled ticket — it will fail offline"
 # stapler alone is a weak proof of stapling: run it with -v and it will happily fetch the
 # ticket from Apple and still say the validation worked. These two are unambiguous — the
 # ticket is a real file inside the bundle, and =notarized is the requirement Gatekeeper
 # itself evaluates.
-[ -f "$MOUNT/Claude Rate Widget.app/Contents/CodeResources" ] \
+[ -f "$MOUNT/Claude Rate Monitor.app/Contents/CodeResources" ] \
   || die "no notarization ticket file in the bundle — stapling did not take"
-codesign --test-requirement="=notarized" --verify "$MOUNT/Claude Rate Widget.app" 2>/dev/null \
+codesign --test-requirement="=notarized" --verify "$MOUNT/Claude Rate Monitor.app" 2>/dev/null \
   || die "the app does not satisfy the =notarized requirement"
 MOUNTED_VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' \
-  "$MOUNT/Claude Rate Widget.app/Contents/Info.plist")"
+  "$MOUNT/Claude Rate Monitor.app/Contents/Info.plist")"
 [ "$MOUNTED_VERSION" = "$VERSION" ] || die "DMG contains $MOUNTED_VERSION, expected $VERSION"
-[ -f "$MOUNT/Claude Rate Widget.app/Contents/Resources/AppIcon.icns" ] \
+[ -f "$MOUNT/Claude Rate Monitor.app/Contents/Resources/AppIcon.icns" ] \
   || die "no app icon in the bundle — Assets.xcassets is probably not in the target"
 info "app accepted, ticket valid, version $MOUNTED_VERSION, icon present"
 hdiutil detach "$MOUNT" -quiet; MOUNT=""
@@ -245,19 +245,19 @@ if [ "$INSTALL" = 1 ]; then
   # on disk. That drift already happened once here: brew reported 1.5.2 for weeks while
   # /Applications held a hand-copied 1.8.0, and the mismatch only surfaced during an
   # upgrade. Say so rather than silently causing it again.
-  if brew list --cask claude-rate-widget >/dev/null 2>&1; then
+  if brew list --cask claude-rate-monitor >/dev/null 2>&1; then
     CASK_VERSION="$(brew list --cask --versions claude-rate-widget 2>/dev/null | awk '{print $2}')"
     info "warning: Homebrew manages this app and reports ${CASK_VERSION:-unknown}."
     info "         Installing over it makes that record wrong until the next brew upgrade."
-    info "         For a released version prefer: brew upgrade --cask claude-rate-widget"
+    info "         For a released version prefer: brew upgrade --cask claude-rate-monitor"
   fi
 
-  pkill -f "/Applications/Claude Rate Widget.app" 2>/dev/null || true
+  pkill -f "/Applications/Claude Rate Monitor.app" 2>/dev/null || true
   sleep 1
   MOUNT="$(hdiutil attach "$DMG" -nobrowse -readonly | grep -o '/Volumes/.*' | head -1)"
   [ -n "$MOUNT" ] || die "could not mount the DMG to install from"
-  rm -rf "/Applications/Claude Rate Widget.app"
-  cp -R "$MOUNT/Claude Rate Widget.app" /Applications/
+  rm -rf "/Applications/Claude Rate Monitor.app"
+  cp -R "$MOUNT/Claude Rate Monitor.app" /Applications/
   hdiutil detach "$MOUNT" -quiet; MOUNT=""
 
   # Gatekeeper's first-launch check on a quarantined app asks a notarization daemon whether
@@ -267,16 +267,16 @@ if [ "$INSTALL" = 1 ]; then
   # Dropping the attribute skips that path. It is safe *here* only because this script has
   # already proven the artifact notarized offline, two lines of which do not need Apple to
   # answer. Never do this to something you have not verified yourself.
-  xattr -dr com.apple.quarantine "/Applications/Claude Rate Widget.app"
-  codesign --test-requirement="=notarized" --verify "/Applications/Claude Rate Widget.app" 2>/dev/null \
+  xattr -dr com.apple.quarantine "/Applications/Claude Rate Monitor.app"
+  codesign --test-requirement="=notarized" --verify "/Applications/Claude Rate Monitor.app" 2>/dev/null \
     || die "the installed copy no longer satisfies =notarized"
   info "installed, quarantine cleared, still notarized"
 
-  open "/Applications/Claude Rate Widget.app"
+  open "/Applications/Claude Rate Monitor.app"
   sleep 5
   # It is a menu-bar app with no Dock icon and no window, so "did it start" is the only
   # thing observable from here.
-  pgrep -f "/Applications/Claude Rate Widget.app" >/dev/null \
+  pgrep -f "/Applications/Claude Rate Monitor.app" >/dev/null \
     && info "running — look for the gauge in the menu bar" \
     || die "the app did not stay running after launch"
 fi
@@ -286,7 +286,7 @@ fi
 if [ "$PUBLISH" = 0 ]; then
   step "Done — nothing published"
   info "artifact: $DMG"
-  [ "$INSTALL" = 1 ] && info "installed:  /Applications/Claude Rate Widget.app"
+  [ "$INSTALL" = 1 ] && info "installed:  /Applications/Claude Rate Monitor.app"
   info "re-run with --publish to tag $TAG and create the GitHub release"
   exit 0
 fi
@@ -295,7 +295,7 @@ step "Tag and publish $TAG"
 git tag -a "$TAG" -m "$TAG"
 git push origin "$TAG"
 gh release create "$TAG" \
-  "$DMG#Claude Rate Widget $TAG (macOS, notarized)" \
+  "$DMG#Claude Rate Monitor $TAG (macOS, notarized)" \
   --title "$TAG" --notes-file "$NOTES" --latest
 
 step "Confirm what was published"

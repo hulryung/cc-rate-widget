@@ -6,7 +6,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                Text("Claude Rate Widget reports the tokens and cost recorded in your local Claude Code logs.")
+                Text("Claude Rate Monitor reports the tokens and cost recorded in your local Claude Code logs.")
                     .font(.callout).foregroundStyle(.secondary)
             } header: {
                 Text("Usage")

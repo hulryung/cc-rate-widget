@@ -29,8 +29,12 @@ targets:
       - path: Assets.xcassets
     settings:
       base:
+        # Keeps the old name deliberately. The bundle id is what UserDefaults, the
+        # Keychain ACL granting access to Claude Code's login, and the cask's zap paths
+        # are all keyed on — renaming it would silently reset every user's settings and
+        # make macOS prompt for the Keychain again. It is never shown to anyone.
         PRODUCT_BUNDLE_IDENTIFIER: com.dkkang.cc-rate-widget
-        PRODUCT_NAME: Claude Rate Widget
+        PRODUCT_NAME: Claude Rate Monitor
         CODE_SIGN_ENTITLEMENTS: CCRateWidget/CCRateWidget.entitlements
         ENABLE_APP_SANDBOX: false
         INFOPLIST_FILE: CCRateWidget/Info.plist
