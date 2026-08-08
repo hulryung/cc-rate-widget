@@ -1,7 +1,4 @@
----
-layout: null
----
 User-agent: *
 Allow: /
 
-Sitemap: {{ site.url }}{{ site.baseurl }}/sitemap.xml
+Sitemap: https://rate.huconn.com/sitemap.xml
