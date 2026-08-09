@@ -140,6 +140,18 @@ has the current authentication policy.
 
 ## Changelog
 
+### v1.10.0
+
+- **Renamed to Claude Rate Monitor.** The desktop widget went away in 1.8; the name had been
+  promising it ever since. The app bundle, the DMG and the Homebrew cask token all follow, and
+  `cask_renames.json` in the tap keeps `brew upgrade` working for anyone on the old token.
+- **Your data comes with you.** Storage moved to
+  `~/Library/Application Support/Claude Rate Monitor/`, copied on first launch and never
+  overwriting. The bundle identifier deliberately did not change — macOS keys your preferences
+  and the Keychain grant on it, so renaming it would have reset both.
+- **The homepage is [rate.hulryung.com](https://rate.hulryung.com/).** The old address resolved
+  to a redirect pointing at an unrelated site, so every link here reached the wrong page.
+
 ### v1.9.0
 
 - **The weekly card shows a bar without being given a limit.** It was the one card that could show
