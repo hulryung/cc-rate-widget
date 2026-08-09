@@ -1,6 +1,6 @@
 # Claude Rate Monitor
 
-**[Homepage](https://rate.huconn.com/)** | **[Releases](https://github.com/hulryung/claude-rate-monitor/releases)**
+**[Homepage](https://rate.hulryung.com/)** | **[Releases](https://github.com/hulryung/claude-rate-monitor/releases)**
 
 A free, open-source native macOS app that monitors your Claude Code token usage and cost at a glance. Never hit a rate limit unexpectedly again.
 
