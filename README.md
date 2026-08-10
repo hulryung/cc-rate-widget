@@ -179,6 +179,20 @@ has the current authentication policy.
 
 ## Changelog
 
+### v1.11.0
+
+- **Anthropic's percentages arrive through the status line, not the Keychain.** Claude Code hands
+  its status-line command `rate_limits.five_hour` and `.seven_day`; have that script write them out
+  and the app reads them — no login, no network call, no permission prompt. The Keychain route
+  stays as an off-by-default fallback. macOS gates that item on a partition list as well as an ACL,
+  so granting one program access locked the other out and the two took turns being prompted.
+- **Three windows, all with gauges** — the all-model week, Fable, and the session. Opus and Sonnet
+  lose their cards: they draw down the same all-model week the top card shows. Fable's bar extends
+  the weekly self-calibration per family, against that family's own days.
+- **The footer names the signed-in account**, read from `~/.claude.json`.
+- **Settings is gone** — nothing in it survived the above. Values already set are still honoured
+  and can be changed with `defaults write`.
+
 ### v1.10.0
 
 - **Renamed to Claude Rate Monitor.** The desktop widget went away in 1.8; the name had been
