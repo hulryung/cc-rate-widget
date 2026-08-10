@@ -36,10 +36,10 @@ two ways to read your usage.
 where that window has no percentage, or the bare gauge icon where there is no weekly window to
 summarise at all. Click it for the full picture: one card per rate-limit window with its token
 count, cost, usage bar and reset time,
-a per-project breakdown of the last 7 days, then Refresh (<kbd>⌘</kbd><kbd>R</kbd>) and Settings
-(<kbd>⌘</kbd><kbd>,</kbd>). Opening it brings the app forward, so those shortcuts and <kbd>Esc</kbd>
-work immediately, with no click into the popover first. It closes on <kbd>Esc</kbd> or a click
-outside it. Right-click the menu-bar item instead for Refresh Now / Settings… / Quit.
+a per-project breakdown of the last 7 days, then Refresh (<kbd>⌘</kbd><kbd>R</kbd>). Opening it
+brings the app forward, so that shortcut and <kbd>Esc</kbd> work immediately, with no click into the
+popover first. It closes on <kbd>Esc</kbd> or a click outside it. Right-click the menu-bar item
+instead for Refresh Now / Quit.
 
 **The HUD — for a five-second glance.** <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> floats a panel over
 whatever you're doing, including full-screen apps, where the menu bar isn't reachable. It shows the
@@ -59,9 +59,8 @@ when the app is already active.
   family in your logs. When Anthropic's own percentages are available the windows are recut to its
   block boundaries, so a card never mixes its figure with a period that doesn't match
 - **Per-project view** — see which projects burned which share of your last 7 days
-- **Percentages without asking you for a limit** — enter your plan's limits in Settings and both
-  windows measure against them. Leave them blank and each self-calibrates against your own history
-  instead: the 5-hour window against the P90 of your past 5-hour blocks ("of your typical peak"),
+- **Percentages without asking you for a limit** — nothing to configure. Each window calibrates
+  against your own history: the 5-hour window against the P90 of your past 5-hour blocks ("of your typical peak"),
   the weekly window against seven days at the pace of your heaviest whole day ("of 7 × your peak
   day"). Both are labelled by what the denominator is, so neither reads as a quota. Each needs
   three past samples — blocks, or whole days — and below three that window shows absolute usage
@@ -94,10 +93,12 @@ Or [build from source](#build-from-source): two commands, no Apple Developer acc
 1. **Grant access — only if you're asked.** With a normal Claude Code install `~/.claude/projects`
    is already readable and the numbers show up on their own. Only when the app can't read it does
    the popover show **Setup required** with a **Grant Access** button, which opens a file panel
-   pinned to that folder; choosing it is what grants access. The same button lives in Settings under
-   **Data**. Nothing is tracked until the app can read the folder.
-2. Optionally open Settings (<kbd>⌘</kbd><kbd>,</kbd> in the popover) to enter your plan's token
-   limits. The <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> shortcut is on by default.
+   pinned to that folder; choosing it is what grants access. Nothing is tracked until the app can
+   read the folder.
+2. Nothing else. There is no settings window: percentages calibrate themselves, and
+   <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> is already on. See
+   [Official percentages](#official-percentages-from-your-status-line) to have Anthropic's own
+   figures reach the app.
 
 ### Requirements
 
@@ -269,7 +270,7 @@ xcodebuild test -project CCRateWidget.xcodeproj -scheme CCRateWidget \
 ### Project structure
 
 ```
-CCRateWidget/       # App: menu-bar item, popover, ⌥⌘U HUD, Settings window
+CCRateWidget/       # App: menu-bar item, popover, ⌥⌘U HUD
 Shared/             # Aggregation, pricing, storage, design tokens (built into app and tests)
 CCRateWidgetTests/
 Assets.xcassets/    # App icon

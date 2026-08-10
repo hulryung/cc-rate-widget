@@ -798,7 +798,7 @@ button:focus-visible,
   <div class="container">
     <div class="section-header">
       <h2 class="fade-in">Every window you actually have</h2>
-      <p class="fade-in d1">Real token counts from your own logs, priced with a cache-aware rate table. A percentage needs something to divide by, and you don't have to be the one who supplies it: type your plan's limits into Settings if you know them, or let each window calibrate against your own history — the 5-hour window against the P90 of your past 5-hour blocks, the weekly window against seven days at the pace of your heaviest whole day. Either way the card prints what it divided by. Turn official usage on and Anthropic's own figures replace both.</p>
+      <p class="fade-in d1">Real token counts from your own logs, priced with a cache-aware rate table. A percentage needs something to divide by, and you supply nothing: each window calibrates against your own history — the 5-hour window against the P90 of your past 5-hour blocks, the weekly window against seven days at the pace of your heaviest whole day. The card prints what it divided by, every time. Point your Claude Code status line at the app and Anthropic's own figures replace both.</p>
     </div>
     <div class="shots fade-in d2">
       <figure class="shot">
@@ -849,7 +849,7 @@ button:focus-visible,
         </div>
         <h3>Three Glances, No Main Window</h3>
         <p>One number in the menu bar for the constant glance: your 7-day total, as a percentage when there's a limit to divide by and a raw token count otherwise. When there's no weekly window to read, the icon sits there on its own.</p>
-        <p>Click it for the popover — every window, plus a per-project breakdown of the last 7 days. Opening the popover brings the app forward, so <kbd>Esc</kbd>, <kbd>⌘</kbd><kbd>R</kbd> and <kbd>⌘</kbd><kbd>,</kbd> work straight away. Press <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> for the same window list floating over anything, including full-screen apps where the menu bar isn't reachable. The HUD leaves your focus where it is, and skips the project breakdown — five seconds isn't long enough to read it. Settings opens in a small window of its own; nothing else does.</p>
+        <p>Click it for the popover — every window, plus a per-project breakdown of the last 7 days. Opening the popover brings the app forward, so <kbd>Esc</kbd> and <kbd>⌘</kbd><kbd>R</kbd> work straight away. Press <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> for the same window list floating over anything, including full-screen apps where the menu bar isn't reachable. The HUD leaves your focus where it is, and skips the project breakdown — five seconds isn't long enough to read it. There is no settings window and nothing to configure.</p>
       </div>
       <div class="feature-card fade-in d1">
         <div class="feature-icon red">
@@ -932,12 +932,12 @@ button:focus-visible,
       <div class="step fade-in d2">
         <div class="step-number">2</div>
         <h3>Grant Access — Only If Asked</h3>
-        <p>With a normal Claude Code install there's nothing to do here — numbers appear on their own, and the app never prompts. If it can't reach <code>~/.claude/projects</code>, where Claude Code keeps its logs, the popover shows <strong>Setup required</strong> with a <strong>Grant Access</strong> button. That button opens a folder picker on that directory, and macOS asks about home-folder access there. The same action lives in Settings as <em>Re-prompt for ~/.claude access</em>.</p>
+        <p>With a normal Claude Code install there's nothing to do here — numbers appear on their own, and the app never prompts. If it can't reach <code>~/.claude/projects</code>, where Claude Code keeps its logs, the popover shows <strong>Setup required</strong> with a <strong>Grant Access</strong> button. That button opens a folder picker on that directory, and macOS asks about home-folder access there.</p>
       </div>
       <div class="step fade-in d3">
         <div class="step-number">3</div>
-        <h3>Set Your Limits</h3>
-        <p>Optional. Press <kbd>⌘</kbd><kbd>,</kbd> in the popover to open Settings and enter your plan's token limits, so the weekly and session windows measure against them. Leave them blank and each window calibrates against your own history instead — the session against the P90 of your past 5-hour blocks, the week against seven days at your heaviest day's pace. Both need three past samples first, and until then that window shows tokens only. <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> is already on. For Anthropic's own percentages, point your Claude Code status line at this app — the README has the two lines.</p>
+        <h3>Nothing to Set Up</h3>
+        <p>There isn't one. Each window calibrates against your own history — the session against the P90 of your past 5-hour blocks, the week against seven days at your heaviest day's pace — and until three past samples exist that window shows tokens only. <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> is already on. For Anthropic's own percentages, point your Claude Code status line at this app; the README has the two lines.</p>
       </div>
     </div>
   </div>

@@ -48,13 +48,6 @@ struct UsagePopover: View {
                 .keyboardShortcut("r", modifiers: .command)
 
                 Spacer()
-
-                Button("Settings…") {
-                    onDismiss()
-                    MenuBarMode.openSettings()
-                }
-                .buttonStyle(.borderless)
-                .keyboardShortcut(",", modifiers: .command)
             }
             .font(AppType.detail)
         }

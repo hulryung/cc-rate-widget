@@ -333,6 +333,41 @@ final class JSONLAggregatorTests: XCTestCase {
         XCTAssertNil(JSONLAggregator.computeSnapshot(events: events, now: now).typicalWeeklyPeak)
     }
 
+    func test_computeSnapshot_weeklyPace_perFamily() {
+        let now = localNoonToday()
+        let noon = now.timeIntervalSince1970
+        // Three whole days for each family, with different peaks. A family is measured
+        // against its own days, not a share of the total.
+        var events: [StoredEvent] = []
+        for (i, day) in [1.0, 2.0, 3.0].enumerated() {
+            events.append(StoredEvent(t: noon - day * 86400, tokens: 100 * (i + 1),
+                                      family: "opus", cost: 0, project: "/p", id: "o\(i)"))
+            events.append(StoredEvent(t: noon - day * 86400, tokens: 10 * (i + 1),
+                                      family: "fable", cost: 0, project: "/p", id: "f\(i)"))
+        }
+        let snap = JSONLAggregator.computeSnapshot(events: events, now: now)
+        XCTAssertEqual(snap.typicalWeeklyPeakByFamily["opus"], 300 * 7)
+        XCTAssertEqual(snap.typicalWeeklyPeakByFamily["fable"], 30 * 7)
+        XCTAssertEqual(snap.typicalWeeklyPeak, 330 * 7, "the all-model pace sums the families per day")
+    }
+
+    func test_computeSnapshot_weeklyPace_perFamily_needsThreeDaysOfItsOwn() {
+        let now = localNoonToday()
+        let noon = now.timeIntervalSince1970
+        var events: [StoredEvent] = []
+        for (i, day) in [1.0, 2.0, 3.0].enumerated() {
+            events.append(StoredEvent(t: noon - day * 86400, tokens: 100, family: "opus",
+                                      cost: 0, project: "/p", id: "o\(i)"))
+        }
+        // Fable appears on two of those days only.
+        events.append(StoredEvent(t: noon - 86400, tokens: 5, family: "fable", cost: 0, project: "/p", id: "f0"))
+        events.append(StoredEvent(t: noon - 2 * 86400, tokens: 5, family: "fable", cost: 0, project: "/p", id: "f1"))
+
+        let snap = JSONLAggregator.computeSnapshot(events: events, now: now)
+        XCTAssertEqual(snap.typicalWeeklyPeakByFamily["opus"], 100 * 7)
+        XCTAssertNil(snap.typicalWeeklyPeakByFamily["fable"])
+    }
+
     func test_computeSnapshot_typicalPeak_nilWhenTooFewBlocks() {
         let now = Date()
         let nowT = now.timeIntervalSince1970

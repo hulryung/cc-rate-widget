@@ -173,10 +173,6 @@ final class MenuBarMode {
         refresh.target = self
         menu.addItem(refresh)
         menu.addItem(.separator())
-        let settings = NSMenuItem(title: "Settings…", action: #selector(settingsAction), keyEquivalent: ",")
-        settings.target = self
-        menu.addItem(settings)
-        menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit", action: #selector(quitAction), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
@@ -188,13 +184,6 @@ final class MenuBarMode {
 
     // MARK: - Actions
 
-    /// The status item and the popover are the only routes to Settings in an accessory
-    /// app, so this has to work without a menu to route through.
-    static func openSettings() {
-        SettingsWindowController.shared.show()
-    }
-
     @objc private func refreshAction() { AggregationCoordinator.shared.runOnce() }
     @objc private func quitAction() { NSApp.terminate(nil) }
-    @objc private func settingsAction() { MenuBarMode.openSettings() }
 }

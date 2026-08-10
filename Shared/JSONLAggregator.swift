@@ -61,6 +61,11 @@ struct AggregationSnapshot {
     /// against, and there never will be. nil until three whole days have usage in them.
     var typicalWeeklyPeak: Int?
 
+    /// The same calculation per model family, so a window Anthropic meters separately can
+    /// carry a bar of its own. A family is measured against its own days, not a share of
+    /// the total: a model used in short bursts would otherwise read as permanently idle.
+    var typicalWeeklyPeakByFamily: [String: Int] = [:]
+
     /// Deduplicated in-window events, kept so totals can be recomputed over an arbitrary
     /// period. Anthropic's windows are fixed blocks with their own start times, not the
     /// rolling windows we compute — right after a weekly reset the two disagree completely,
@@ -185,6 +190,7 @@ final class JSONLAggregator {
         var perProjectCost:   [String: Double] = [:]
         var blockTotals: [Int: Int] = [:]   // fixed 5h block index → tokens (for P90 peak)
         var dayTotals: [Int: Int] = [:]     // local-day index → tokens (for the weekly pace)
+        var dayTotalsByFamily: [String: [Int: Int]] = [:]   // the same, per model family
         var seen = Set<String>()            // dedupe: same event logged in multiple files
         var kept: [StoredEvent] = []
 
@@ -222,7 +228,9 @@ final class JSONLAggregator {
             perProjectCost[e.project, default: 0]   += e.cost
 
             blockTotals[Int(e.t / fiveHours), default: 0] += e.tokens
-            dayTotals[Int((e.t + tzOffset) / 86400), default: 0] += e.tokens
+            let day = Int((e.t + tzOffset) / 86400)
+            dayTotals[day, default: 0] += e.tokens
+            if !e.family.isEmpty { dayTotalsByFamily[e.family, default: [:]][day, default: 0] += e.tokens }
         }
 
         // Typical 5-hour peak = P90 of past active blocks (exclude the in-progress block).
@@ -237,8 +245,12 @@ final class JSONLAggregator {
         // peak outright rather than dressing it up as a statistic. Three active days is the
         // same floor the 5-hour peak uses: below that, one unusual day is the whole scale.
         let today = Int((nowT + tzOffset) / 86400)
-        let wholeDays = dayTotals.filter { $0.key < today && $0.key >= today - 6 && $0.value > 0 }.values
-        let weeklyPace = wholeDays.count >= 3 ? wholeDays.max().map { $0 * 7 } : nil
+        func peakPace(_ totals: [Int: Int]) -> Int? {
+            let wholeDays = totals.filter { $0.key < today && $0.key >= today - 6 && $0.value > 0 }.values
+            return wholeDays.count >= 3 ? wholeDays.max().map { $0 * 7 } : nil
+        }
+        let weeklyPace = peakPace(dayTotals)
+        let familyPace = dayTotalsByFamily.compactMapValues(peakPace)
 
         let entries = perProjectTokens.map { (cwd, tokens) in
             ProjectBreakdown.Entry(
@@ -261,6 +273,7 @@ final class JSONLAggregator {
             lastHalfHourTokensPerSecond: Double(halfHourTokens) / halfHour,
             typicalFiveHourPeak: typicalPeak,
             typicalWeeklyPeak: weeklyPace,
+            typicalWeeklyPeakByFamily: familyPace,
             events: kept
         )
     }

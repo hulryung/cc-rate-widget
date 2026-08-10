@@ -5,15 +5,13 @@ import SwiftUI
 /// lives in the popover now. Keeping a window alive alongside them meant a hide-vs-destroy
 /// dance, an activation-policy switch, and a launch-time race to attach a close handler,
 /// all to maintain a surface that duplicated the popover.
-///
-/// Settings is a window this app creates itself — see `SettingsWindowController`.
 @main
 struct CCRateWidgetApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     /// `App` requires a scene, but this app has no SwiftUI-managed windows: the status
-    /// item, popover, HUD, and Settings window are all created directly. This placeholder
-    /// is unreachable — opening it needs the app menu, which an `LSUIElement` app lacks.
+    /// item, popover and HUD are all created directly. This placeholder is unreachable —
+    /// opening it needs the app menu, which an `LSUIElement` app lacks.
     var body: some Scene {
         Settings { EmptyView() }
     }

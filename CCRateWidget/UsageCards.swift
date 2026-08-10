@@ -142,9 +142,13 @@ struct ResetLine: View {
     }
 }
 
-/// Where the numbers came from, and when — one quiet line rather than a badge per card.
+/// Where the numbers came from, whose they are, and when — one quiet line rather than a
+/// badge per card.
 struct FooterLine: View {
     let rate: RateData
+    /// Read once per render rather than stored: it changes only on sign-in, and the read
+    /// is a cached file stat.
+    private var account: String? { ClaudeAccount.email() }
 
     var body: some View {
         HStack(spacing: Metric.gutter) {
@@ -154,8 +158,17 @@ struct FooterLine: View {
                 Text("·").foregroundStyle(.tertiary)
             }
             Text(rate.source.shortLabel)
+            if let account {
+                Text("·").foregroundStyle(.tertiary)
+                // Truncates from the head so the domain survives a narrow popover: two
+                // accounts on one machine are told apart by what follows the @.
+                Text(account)
+                    .truncationMode(.head)
+                    .lineLimit(1)
+                    .accessibilityLabel("Signed in as \(account)")
+            }
             Spacer()
-            Text("Updated \(rate.fetchedAt, style: .time)")
+            Text("Updated \(rate.fetchedAt, style: .time)").fixedSize()
         }
         .font(AppType.micro)
         .foregroundStyle(.secondary)

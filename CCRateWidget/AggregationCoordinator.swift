@@ -3,6 +3,12 @@ import WidgetKit
 
 @MainActor
 final class AggregationCoordinator: ObservableObject {
+    /// Model families Anthropic meters against a limit of their own, and so the only ones
+    /// worth a card of their own. Everything else — Opus, Sonnet — draws down the same
+    /// all-model week the top card already shows, so a second bar for it would be the same
+    /// quota counted twice, and `/status` doesn't list them either.
+    static let separatelyMeteredFamilies: Set<String> = ["fable"]
+
     static let shared = AggregationCoordinator()
 
     private let queue: OperationQueue = {
@@ -108,16 +114,15 @@ final class AggregationCoordinator: ObservableObject {
             UsageWindow(id: RateData.weeklyID, title: "Weekly", subtitle: "7 days", data: localWeekly),
             UsageWindow(id: RateData.sessionID, title: "Session", subtitle: "5 hours", data: localSession),
         ]
-        // Without official data there are no per-model limits to report against, but the
-        // per-family totals are still worth showing. Largest first.
         for (family, totals) in snap.sevenDayByFamily.sorted(by: { $0.value.tokens > $1.value.tokens })
-        where totals.tokens > 0 {
+        where totals.tokens > 0 && Self.separatelyMeteredFamilies.contains(family) {
             windows.append(UsageWindow(
                 id: "weekly_family_\(family)",
                 title: "Weekly · \(family.capitalized)", subtitle: "7 days",
                 data: cat(tokens: totals.tokens, cost: totals.cost,
                           earliest: snap.earliestInSevenDay, window: 7 * 86400,
-                          limit: nil, kind: nil)))
+                          limit: snap.typicalWeeklyPeakByFamily[family],
+                          kind: snap.typicalWeeklyPeakByFamily[family] != nil ? .peakPace : nil)))
         }
 
         /// Local tokens and dollars measured over *Anthropic's* window, not ours.
@@ -166,15 +171,19 @@ final class AggregationCoordinator: ObservableObject {
                 let start = weeklyReset.addingTimeInterval(-7 * 86400)
                 windows.removeAll { $0.id.hasPrefix("weekly_family_") }
                 let families = snap.sevenDayByFamily.keys
+                    .filter { Self.separatelyMeteredFamilies.contains($0) }
                     .map { (family: $0, totals: snap.totals(since: start, family: $0)) }
                     .filter { $0.totals.tokens > 0 }
                     .sorted { $0.totals.tokens > $1.totals.tokens }
                 windows.append(contentsOf: families.map { entry in
-                    UsageWindow(
+                    let pace = snap.typicalWeeklyPeakByFamily[entry.family]
+                    return UsageWindow(
                         id: "weekly_family_\(entry.family)",
                         title: "Weekly · \(entry.family.capitalized)", subtitle: "7 days",
                         data: CategoryData(tokens: entry.totals.tokens, cost: entry.totals.cost,
-                                           resetsAt: weeklyReset))
+                                           resetsAt: weeklyReset,
+                                           limitTokens: pace,
+                                           limitKind: pace != nil ? .peakPace : nil))
                 })
             }
             source = .statusLine
