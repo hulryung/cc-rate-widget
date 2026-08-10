@@ -56,8 +56,8 @@ when the app is already active.
 - **Real token & cost tracking** — real counts and USD cost from your logs, not estimates. Prices the
   current Claude 5 generation (Opus 5, Sonnet 5, Fable 5) and bills 1-hour cache writes at 2×
 - **Windows that match your account** — a 7-day window, a 5-hour session window, and one per model
-  family in your logs. With official usage enabled the list is Anthropic's instead: whatever windows
-  it reports, including scoped per-model ones that come and go
+  family in your logs. When Anthropic's own percentages are available the windows are recut to its
+  block boundaries, so a card never mixes its figure with a period that doesn't match
 - **Per-project view** — see which projects burned which share of your last 7 days
 - **Percentages without asking you for a limit** — enter your plan's limits in Settings and both
   windows measure against them. Leave them blank and each self-calibrates against your own history
@@ -67,9 +67,10 @@ when the app is already active.
   three past samples — blocks, or whole days — and below three that window shows absolute usage
   only. Days are your calendar's, and the weekly pace ignores today and the oldest day in the
   window, since neither is whole
+- **Official percentages without a login** — Claude Code hands its status-line script the same figures `/status` prints; have that script write them out and the app reads them, with no keychain access and no network call of its own. See [Official percentages](#official-percentages-from-your-status-line)
 - **Honest by design** — de-duplicates events on the same `messageId:requestId` key `ccusage` uses,
-  and a model id it can't place in any family contributes tokens but no cost. The official quota
-  percentage is an experimental opt-in, because Anthropic provides no supported public usage API
+  and a model id it can't place in any family contributes tokens but no cost. Every percentage is
+  captioned with what it divided by, so a self-calibrated figure is never mistaken for a quota
 
 ## Install
 
@@ -119,18 +120,55 @@ plain Developer ID signing. Storage moved with it, to
 first time the new build runs, and only where a value isn't already there, so re-running never
 clobbers anything newer.
 
-## Anthropic usage API support
+## Official percentages, from your status line
 
-The app's primary, supported data source is local Claude Code JSONL logs — a path that never calls
-Anthropic's usage API and never asks the app to manage your credentials.
+Anthropic's real quota percentages — the ones `/status` prints — can reach this app without a
+login, a token, or a network call of its own. Claude Code hands its
+[status-line command](https://code.claude.com/docs/en/statusline) a JSON payload on stdin that
+includes them:
 
-The optional **official usage percentage** is experimental and off by default. It reads Claude
-Code's existing OAuth access token from the macOS Keychain and calls the internal `/api/oauth/usage`
-endpoint, the one behind Claude Code's own `/status` percentages. That endpoint is not a documented
-public API, and Anthropic states that subscription OAuth credentials are meant for its own
-applications rather than third-party products. So the integration is not supported or guaranteed: it
-may return `401` or `403`, change format, or stop working without notice, and the app then falls
-back to local usage data.
+```json
+"rate_limits": {
+  "five_hour": { "used_percentage": 23.5, "resets_at": 1738425600 },
+  "seven_day": { "used_percentage": 41.2, "resets_at": 1738857600 }
+}
+```
+
+Have your status-line script write that block out and the app picks it up. Add this to the script
+named by `statusLine` in `~/.claude/settings.json`, where `$input` is the stdin JSON it already
+read:
+
+```bash
+crm_dir="$HOME/Library/Application Support/Claude Rate Monitor"
+printf '%s' "$input" | jq -e '.rate_limits | objects | (has("five_hour") or has("seven_day"))' >/dev/null 2>&1 &&
+  mkdir -p "$crm_dir" &&
+  printf '%s' "$input" | jq -c '{written_at: (now | floor), rate_limits: .rate_limits}' \
+    > "$crm_dir/.statusline-usage.tmp" &&
+  mv -f "$crm_dir/.statusline-usage.tmp" "$crm_dir/statusline-usage.json"
+```
+
+The weekly and session cards then show Anthropic's percentage, and their token counts are recut
+over Anthropic's window rather than our rolling one, so the per-model cards still add up to the
+weekly total. The footer reads **official · status line**.
+
+Two limits worth knowing. `rate_limits` appears only for Claude.ai subscribers, and only after a
+session's first API response — so the file advances while you work and goes quiet when you stop.
+Past an hour the app ignores it and falls back to local self-calibration, because a stale
+percentage shown as current is worse than no percentage. And the numbers describe your account,
+while everything else here describes this Mac's logs.
+
+### The Keychain path (legacy, off by default)
+
+Before the status-line field existed, the only route was Claude Code's OAuth token: read it from
+the Keychain and call the internal `/api/oauth/usage` endpoint. That still exists behind **Read the
+keychain instead**, used only when no status-line data is present or it has gone stale.
+
+It is worth avoiding. The endpoint is undocumented and Anthropic states that subscription OAuth
+credentials are meant for its own applications rather than third-party products, so it may return
+`401` or `403` or change without notice. Worse in practice: macOS gates that Keychain item on a
+partition list as well as an ACL, and granting one program access narrows the list against the
+other — so this app and Claude Code took turns being prompted, and "Always Allow" could not settle
+it. The status-line path exists because of that.
 
 The app never refreshes Claude Code's OAuth token, because that could rotate Claude Code's own
 refresh token and break its login. It never writes the token to disk either — it keeps it in memory,

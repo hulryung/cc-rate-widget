@@ -120,12 +120,65 @@ final class AggregationCoordinator: ObservableObject {
                           limit: nil, kind: nil)))
         }
 
-        // Official Anthropic % (opt-in): reading the keychain can raise a macOS permission
-        // prompt, so it happens at most once per throttle window.
+        /// Local tokens and dollars measured over *Anthropic's* window, not ours.
+        ///
+        /// Their windows are fixed blocks: the weekly one had just rolled over when
+        /// this was written, so the official figure was 0% while our rolling 7-day
+        /// count still said 99.7M. Deriving the block start from `resets_at` makes the
+        /// two halves of a card describe the same period.
+        ///
+        /// Without a `resets_at` there is nothing to anchor to, so the window shows its
+        /// percentage alone rather than a number covering the wrong span.
+        func localData(id: String, scope: String?, resetsAt: Date?) -> CategoryData? {
+            guard let resetsAt else { return nil }
+            let period: TimeInterval = id == RateData.sessionID ? 5 * 3600 : 7 * 86400
+            let start = resetsAt.addingTimeInterval(-period)
+            let family = scope.map { ModelFamily.key(forDisplayName: $0) }
+            if let family, family.isEmpty { return nil }
+            let t = snap.totals(since: start, family: family)
+            return CategoryData(tokens: t.tokens, cost: t.cost, resetsAt: resetsAt)
+        }
+
         var source: RateDataSource = .jsonl
         var officialAt: Date? = nil
         let oauthOn = suite.bool(forKey: "oauthEnabled")
-        if oauthOn {
+
+        // Anthropic's own percentages, left for us by Claude Code's status-line script.
+        // Preferred over the Keychain path below and needing no opt-in of its own: writing
+        // that file is the opt-in, and reading it asks macOS for nothing. Only the two
+        // account-wide windows come this way, so per-family cards keep their local totals
+        // instead of vanishing the way the Keychain path replaces the whole list.
+        if let statusLine = StatusLineUsage.read(from: store.container, now: now) {
+            func overlay(_ id: String, _ window: StatusLineUsage.Window?) {
+                guard let window, let i = windows.firstIndex(where: { $0.id == id }) else { return }
+                let base = localData(id: id, scope: nil, resetsAt: window.resetsAt)
+                    ?? CategoryData(tokens: 0, cost: 0, resetsAt: window.resetsAt)
+                windows[i].data = base.withOfficial(window.utilization, resetsAt: window.resetsAt)
+            }
+            overlay(RateData.weeklyID, statusLine.sevenDay)
+            overlay(RateData.sessionID, statusLine.fiveHour)
+
+            // Re-cut the per-family windows over Anthropic's block too. Left on our rolling
+            // seven days they contradict the card above them — the first run of this showed
+            // "Weekly 55.71M" over "Weekly · Opus 63.45M", a total smaller than one of its
+            // own parts. Same reset, same span, so the parts add up to the whole again.
+            if let weeklyReset = statusLine.sevenDay?.resetsAt {
+                let start = weeklyReset.addingTimeInterval(-7 * 86400)
+                windows.removeAll { $0.id.hasPrefix("weekly_family_") }
+                let families = snap.sevenDayByFamily.keys
+                    .map { (family: $0, totals: snap.totals(since: start, family: $0)) }
+                    .filter { $0.totals.tokens > 0 }
+                    .sorted { $0.totals.tokens > $1.totals.tokens }
+                windows.append(contentsOf: families.map { entry in
+                    UsageWindow(
+                        id: "weekly_family_\(entry.family)",
+                        title: "Weekly · \(entry.family.capitalized)", subtitle: "7 days",
+                        data: CategoryData(tokens: entry.totals.tokens, cost: entry.totals.cost,
+                                           resetsAt: weeklyReset))
+                })
+            }
+            source = .statusLine
+        } else if oauthOn {
             let throttle: TimeInterval = 15 * 60
             let prev = try? store.readRate()
             var official: OfficialUsage?
@@ -145,25 +198,6 @@ final class AggregationCoordinator: ObservableObject {
                 ($0.data.officialUtilization != nil) && ($0.data.resetsAt.map { $0 <= now } ?? false)
             } ?? false
             let withinWindow = recentlyTried && !cacheRolledOver
-
-            /// Local tokens and dollars measured over *Anthropic's* window, not ours.
-            ///
-            /// Their windows are fixed blocks: the weekly one had just rolled over when
-            /// this was written, so the official figure was 0% while our rolling 7-day
-            /// count still said 99.7M. Deriving the block start from `resets_at` makes the
-            /// two halves of a card describe the same period.
-            ///
-            /// Without a `resets_at` there is nothing to anchor to, so the window shows its
-            /// percentage alone rather than a number covering the wrong span.
-            func localData(id: String, scope: String?, resetsAt: Date?) -> CategoryData? {
-                guard let resetsAt else { return nil }
-                let period: TimeInterval = id == RateData.sessionID ? 5 * 3600 : 7 * 86400
-                let start = resetsAt.addingTimeInterval(-period)
-                let family = scope.map { ModelFamily.key(forDisplayName: $0) }
-                if let family, family.isEmpty { return nil }
-                let t = snap.totals(since: start, family: family)
-                return CategoryData(tokens: t.tokens, cost: t.cost, resetsAt: resetsAt)
-            }
 
             if withinWindow, let prev, prev.source == .oauth, !prev.windows.isEmpty {
                 // Reuse the cached window list verbatim — its titles came from Anthropic
