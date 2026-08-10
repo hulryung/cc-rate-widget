@@ -864,7 +864,7 @@ button:focus-visible,
         </div>
         <h3>No Login, No Keys</h3>
         <p>Reads the JSONL logs Claude Code already writes on your Mac. No account to connect, no API keys to manage, no config files to edit.</p>
-        <p>The official percentage is the exception, and it's off by default. It borrows Claude Code's existing keychain login rather than asking for one. Treat it as experimental: the endpoint isn't a documented public API, Anthropic discourages third-party use of that login, and it can stop working without notice.</p>
+        <p>Anthropic's real percentages arrive the documented way: Claude Code hands its status-line script the same figures <code>/status</code> prints, and a couple of lines in that script leave them where this app can read them. No login, no keychain, no network call of its own. The older route — borrowing Claude Code's keychain login for an undocumented endpoint — is still there as a fallback, and still off by default.</p>
       </div>
       <div class="feature-card fade-in d3">
         <div class="feature-icon green">
@@ -937,7 +937,7 @@ button:focus-visible,
       <div class="step fade-in d3">
         <div class="step-number">3</div>
         <h3>Set Your Limits</h3>
-        <p>Optional. Press <kbd>⌘</kbd><kbd>,</kbd> in the popover to open Settings and enter your plan's token limits, so the weekly and session windows measure against them. Leave them blank and each window calibrates against your own history instead — the session against the P90 of your past 5-hour blocks, the week against seven days at your heaviest day's pace. Both need three past samples first, and until then that window shows tokens only. <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> is already on, and official Anthropic percentages are the one thing here that's off by default.</p>
+        <p>Optional. Press <kbd>⌘</kbd><kbd>,</kbd> in the popover to open Settings and enter your plan's token limits, so the weekly and session windows measure against them. Leave them blank and each window calibrates against your own history instead — the session against the P90 of your past 5-hour blocks, the week against seven days at your heaviest day's pace. Both need three past samples first, and until then that window shows tokens only. <kbd>⌥</kbd><kbd>⌘</kbd><kbd>U</kbd> is already on. For Anthropic's own percentages, point your Claude Code status line at this app — the README has the two lines.</p>
       </div>
     </div>
   </div>

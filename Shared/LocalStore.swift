@@ -42,6 +42,10 @@ final class LocalStore {
         self.containerURL = containerURL
     }
 
+    /// Where the store keeps its files. Exposed because the status-line script writes into
+    /// the same directory, and the app has to look for it there.
+    var container: URL { containerURL }
+
     // MARK: - URLs
     private var rateURL:     URL { containerURL.appendingPathComponent("rate.json") }
     private var projectsURL: URL { containerURL.appendingPathComponent("projects.json") }

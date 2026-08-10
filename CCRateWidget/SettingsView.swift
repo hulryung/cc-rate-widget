@@ -3,6 +3,12 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var store = SettingsStore.shared
 
+    /// Read on each appearance rather than observed: Settings is opened, glanced at and
+    /// closed, and a file that changes every few seconds isn't worth a watcher.
+    private var statusLineActive: Bool {
+        StatusLineUsage.read(from: LocalStore.shared.container) != nil
+    }
+
     var body: some View {
         Form {
             Section {
@@ -43,7 +49,28 @@ struct SettingsView: View {
             }
 
             Section {
-                Toggle("Show official usage %", isOn: $store.oauthEnabled)
+                // Live rather than instructional: whether the file is arriving is the one
+                // thing you cannot tell by reading your own config.
+                if statusLineActive {
+                    Label("Your status line is publishing Anthropic's percentages.",
+                          systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                } else {
+                    Label("Not set up — the README shows the two lines to add.",
+                          systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Official usage")
+            } footer: {
+                Text("Claude Code hands its status-line script the same percentages /status prints. Have that script write them out and this app reads them — no login, no keychain, no network call of its own.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle("Read the keychain instead", isOn: $store.oauthEnabled)
                     .onChange(of: store.oauthEnabled) { _, _ in AggregationCoordinator.shared.runOnce() }
 
                 // Promoted out of the footer: as gray body text at the end of four
@@ -52,10 +79,8 @@ struct SettingsView: View {
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.orange)
-            } header: {
-                Text("Official usage")
             } footer: {
-                Text("Reads Claude Code's login from your keychain to show the same percentages as /status. When off, only local logs are used.")
+                Text("The old path, for when no status line is publishing. It borrows Claude Code's login from your keychain and calls an endpoint Anthropic doesn't document. macOS gates that keychain item on a partition list, so granting one program access can lock the other out — expect repeat prompts. Used only when status-line data is missing or over an hour old.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
 

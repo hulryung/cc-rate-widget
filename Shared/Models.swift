@@ -183,6 +183,7 @@ enum OverallStatus: String {
 
 enum RateDataSource: String, Codable {
     case jsonl
+    case statusLine = "status_line"   // Anthropic's percentages, via Claude Code's status-line JSON
     case oauth
     case hybrid
     case partial            // backfill in progress

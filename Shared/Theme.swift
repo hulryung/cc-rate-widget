@@ -145,6 +145,7 @@ extension RateDataSource {
     var shortLabel: String {
         switch self {
         case .jsonl:       return "local logs"
+        case .statusLine:  return "official · status line"
         case .oauth:       return "official"
         case .hybrid:      return "local + official"
         case .partial:     return "still learning"
