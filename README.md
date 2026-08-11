@@ -179,6 +179,16 @@ has the current authentication policy.
 
 ## Changelog
 
+### v1.11.1
+
+- **The Fable card loses its bar.** Anthropic meters that window separately but doesn't report it
+  to the status line, so 1.11.0 filled the gap with a self-calibrated stand-in — which read 31%
+  where `/status` said 79%. Two unrelated measures in the same shape are worse than one number
+  without a bar. Tokens, cost and the reset time stay.
+- **Every percentage names its denominator on every card**, not only the first one. The weekly card
+  announced "Anthropic quota" while the card under it showed a self-calibrated figure with nothing
+  to distinguish it.
+
 ### v1.11.0
 
 - **Anthropic's percentages arrive through the status line, not the Keychain.** Claude Code hands

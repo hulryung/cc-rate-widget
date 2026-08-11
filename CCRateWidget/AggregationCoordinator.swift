@@ -119,10 +119,13 @@ final class AggregationCoordinator: ObservableObject {
             windows.append(UsageWindow(
                 id: "weekly_family_\(family)",
                 title: "Weekly · \(family.capitalized)", subtitle: "7 days",
+                // No bar: Anthropic meters this window separately but doesn't report it to
+                // the status line, and the only denominator we could invent — this
+                // family's own peak pace — read 31% beside a real 79%. Two unrelated
+                // measures in the same shape is worse than one number without a bar.
                 data: cat(tokens: totals.tokens, cost: totals.cost,
                           earliest: snap.earliestInSevenDay, window: 7 * 86400,
-                          limit: snap.typicalWeeklyPeakByFamily[family],
-                          kind: snap.typicalWeeklyPeakByFamily[family] != nil ? .peakPace : nil)))
+                          limit: nil, kind: nil)))
         }
 
         /// Local tokens and dollars measured over *Anthropic's* window, not ours.
@@ -176,14 +179,11 @@ final class AggregationCoordinator: ObservableObject {
                     .filter { $0.totals.tokens > 0 }
                     .sorted { $0.totals.tokens > $1.totals.tokens }
                 windows.append(contentsOf: families.map { entry in
-                    let pace = snap.typicalWeeklyPeakByFamily[entry.family]
-                    return UsageWindow(
+                    UsageWindow(
                         id: "weekly_family_\(entry.family)",
                         title: "Weekly · \(entry.family.capitalized)", subtitle: "7 days",
                         data: CategoryData(tokens: entry.totals.tokens, cost: entry.totals.cost,
-                                           resetsAt: weeklyReset,
-                                           limitTokens: pace,
-                                           limitKind: pace != nil ? .peakPace : nil))
+                                           resetsAt: weeklyReset))
                 })
             }
             source = .statusLine

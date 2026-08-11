@@ -98,6 +98,14 @@ struct StatCard: View {
                 UsageBar(utilization: u, animated: true)
             }
 
+            // Every percentage says what it divided by, on every card. Without this the
+            // weekly card announced "Anthropic quota" while the card under it showed a
+            // self-calibrated figure with nothing to distinguish it — 31% of your own peak
+            // pace sitting where 79% of a real quota was expected.
+            if let caption = limitCaption(cat, plan: plan) {
+                Text(caption).font(AppType.micro).foregroundStyle(.secondary)
+            }
+
             Spacer(minLength: 0)
 
             if showsReset, let resetsAt = cat.resetsAt {
